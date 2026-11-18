@@ -16,6 +16,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             broker::broker_status,
+            broker::broker_operations,
             broker::broker_grant_root,
             broker::broker_revoke,
             broker::broker_list_files,

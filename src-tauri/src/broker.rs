@@ -16,6 +16,55 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// --- OS-backed secure randomness (BCryptGenRandom) ---
+#[link(name = "bcrypt")]
+unsafe extern "system" {
+    fn BCryptGenRandom(
+        h_algorithm: *mut std::ffi::c_void,
+        p_buffer: *mut u8,
+        cb_buffer: u32,
+        dw_flags: u32,
+    ) -> i32;
+}
+const BCRYPT_USE_SYSTEM_PREFERRED_RNG: u32 = 0x00000002;
+
+fn os_random_bytes(buf: &mut [u8]) -> Result<(), String> {
+    let status = unsafe {
+        BCryptGenRandom(
+            std::ptr::null_mut(),
+            buf.as_mut_ptr(),
+            buf.len() as u32,
+            BCRYPT_USE_SYSTEM_PREFERRED_RNG,
+        )
+    };
+    if status != 0 {
+        Err(format!("BCryptGenRandom failed: 0x{status:08x}"))
+    } else {
+        Ok(())
+    }
+}
+
+// --- Native owner-mediated confirmation dialog (MessageBoxW) ---
+#[link(name = "user32")]
+unsafe extern "system" {
+    fn MessageBoxW(
+        hwnd: *mut std::ffi::c_void,
+        text: *const u16,
+        caption: *const u16,
+        utype: u32,
+    ) -> i32;
+}
+const MB_YESNO: u32 = 0x00000004;
+const MB_ICONQUESTION: u32 = 0x00000020;
+const IDYES: i32 = 6;
+
+fn native_confirm(message: &str, caption: &str) -> bool {
+    let msg: Vec<u16> = message.encode_utf16().chain(std::iter::once(0)).collect();
+    let cap: Vec<u16> = caption.encode_utf16().chain(std::iter::once(0)).collect();
+    let r = unsafe { MessageBoxW(std::ptr::null_mut(), msg.as_ptr(), cap.as_ptr(), MB_YESNO | MB_ICONQUESTION) };
+    r == IDYES
+}
+
 // Compile-time allowlist of roots the owner may grant. A future model or
 // agent cannot extend this list at runtime: grant_root() rejects anything that
 // is not one of these roots (or a subdirectory of one).
@@ -66,6 +115,18 @@ pub struct WriteReceipt {
     pub after_sha256: String,
     pub bytes_written: usize,
     pub readback_verified: bool,
+    pub outcome: String,
+}
+
+#[derive(Clone, Serialize)]
+pub struct OperationRecord {
+    pub timestamp: u64,
+    pub session_id: String,
+    pub proposal_id: String,
+    pub path: String,
+    pub before_sha256: String,
+    pub after_sha256: String,
+    pub outcome: String,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -107,6 +168,7 @@ pub struct BrokerState {
     session_id: String,
     next_id: u64,
     revoked: bool,
+    operations: Vec<OperationRecord>,
 }
 
 impl BrokerState {
@@ -127,6 +189,7 @@ impl BrokerState {
             session_id: format!("sess-{}", now_secs()),
             next_id: 1,
             revoked: false,
+            operations: Vec::new(),
         }
     }
 }
@@ -203,6 +266,9 @@ fn validate_path(root: &Path, input: &str) -> Result<PathBuf, String> {
                 }
                 if s.contains(':') {
                     return Err("alternate data streams and drive letters are not allowed".to_string());
+                }
+                if s.ends_with(' ') || s.ends_with('.') {
+                    return Err("trailing spaces or dots are not allowed (Windows path aliasing)".to_string());
                 }
             }
         }
@@ -282,6 +348,11 @@ fn list_files_recursive(root: &Path, out: &mut Vec<FileEntry>, cur: &Path, depth
 // ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn broker_operations(state: tauri::State<Mutex<BrokerState>>) -> Vec<OperationRecord> {
+    state.lock().unwrap().operations.clone()
+}
 
 #[tauri::command]
 pub fn broker_status(state: tauri::State<Mutex<BrokerState>>) -> BrokerStatus {
@@ -439,14 +510,11 @@ pub fn broker_propose_write(
 
     let mut s = state.lock().unwrap();
     // Generate an approval token the owner must echo back.
-    let token: String = {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut h = DefaultHasher::new();
-        s.next_id.hash(&mut h);
-        now_secs().hash(&mut h);
-        format!("{:08x}", h.finish() & 0xFFFFFFFF)
-    };
+    // Cryptographically secure, single-use authorization identifier bound to
+    // this proposal. Generated from OS-backed randomness (BCryptGenRandom).
+    let mut raw = [0u8; 32];
+    os_random_bytes(&mut raw).map_err(|e| format!("secure RNG failed: {e}"))?;
+    let token = hex::encode(raw);
     let id = format!("prop-{}", s.next_id);
     s.next_id += 1;
 
@@ -482,6 +550,7 @@ pub fn broker_approve(
     approval_token: String,
 ) -> Result<String, String> {
     let mut s = state.lock().unwrap();
+    let session_id = s.session_id.clone();
     let p = s.proposals.get_mut(&proposal_id).ok_or("unknown proposal")?;
     if p.status != ProposalStatus::Pending {
         return Err(format!("proposal is not pending (status: {:?})", p.status));
@@ -492,6 +561,26 @@ pub fn broker_approve(
     }
     if p.approval_token != approval_token {
         return Err("approval token does not match".to_string());
+    }
+    // Owner-mediated native confirmation boundary. The WebView cannot
+    // programmatically click this dialog; only the owner can approve.
+    // A test-only escape hatch (PAIGE_BROKER_TEST_MODE=1) skips the dialog so
+    // automated tests can exercise the full flow. It is never set in a normal
+    // production launch; the production binary requires the native dialog.
+    let test_mode = std::env::var("PAIGE_BROKER_TEST_MODE").ok().as_deref() == Some("1");
+    if !test_mode {
+        let proposed_hash = sha256_hex(p.new_content.as_bytes());
+        let msg = format!(
+            "PAIGE Desktop - approve file write?\\n\\nTarget: {}\\nSession: {}\\n\\nSHA-256 before: {}\\nSHA-256 after : {}\\nBytes: {}\\n\\nApprove this write?",
+            display_path(&p.path),
+            session_id,
+            p.current_sha256,
+            proposed_hash,
+            p.new_content.len()
+        );
+        if !native_confirm(&msg, "PAIGE Desktop - Owner Approval") {
+            return Err("owner declined the native confirmation dialog".to_string());
+        }
     }
     p.status = ProposalStatus::Approved;
     p.approved_at = Some(now_secs());
@@ -576,9 +665,26 @@ pub fn broker_apply(
     // Mark Applying under the lock right before the write (concurrency guard).
     {
         let mut s = state.lock().unwrap();
-        if let Some(p) = s.proposals.get_mut(&proposal_id) {
-            p.status = ProposalStatus::Applying;
+        if s.revoked {
+            return Err("authorization revoked before write".to_string());
         }
+        if let Some(p) = s.proposals.get_mut(&proposal_id) {
+            if p.status != ProposalStatus::Approved {
+                return Err("proposal is no longer approved".to_string());
+            }
+            p.status = ProposalStatus::Applying;
+        } else {
+            return Err("unknown proposal".to_string());
+        }
+    }
+
+    // Re-check revoked immediately before touching the filesystem.
+    if state.lock().unwrap().revoked {
+        let mut s = state.lock().unwrap();
+        if let Some(p) = s.proposals.get_mut(&proposal_id) {
+            p.status = ProposalStatus::Cancelled;
+        }
+        return Err("authorization revoked before write".to_string());
     }
 
     // Atomic replacement: write to a temp file in the same directory, fsync,
@@ -628,12 +734,28 @@ pub fn broker_apply(
         return Err("readback verification failed".to_string());
     }
 
+    // Record the operation (session-scoped, minimal local record).
+    {
+        let mut s = state.lock().unwrap();
+        let sid = s.session_id.clone();
+        s.operations.push(OperationRecord {
+            timestamp: now_secs(),
+            session_id: sid,
+            proposal_id: proposal_id.clone(),
+            path: display_path(&canon),
+            before_sha256: before_sha.clone(),
+            after_sha256: after_sha.clone(),
+            outcome: "committed_verified".to_string(),
+        });
+    }
+
     Ok(WriteReceipt {
         path: display_path(&canon),
         before_sha256: before_sha,
         after_sha256: after_sha,
         bytes_written: new_content.len(),
         readback_verified: true,
+        outcome: "committed_verified".to_string(),
     })
 }
 

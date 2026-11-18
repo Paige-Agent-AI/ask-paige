@@ -20,7 +20,11 @@ const check = (name, pass, detail = "") => {
 };
 
 const child = spawn(exe, [], {
-  env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}` },
+  env: {
+    ...process.env,
+    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}`,
+    PAIGE_BROKER_TEST_MODE: "1", // test-only: skips the native owner dialog
+  },
   stdio: "ignore",
 });
 
@@ -78,7 +82,7 @@ try {
   const originalSha = read.sha256;
 
   const prop = await invoke("broker_propose_write", { path: "README.md", newContent: "BROKER RUNTIME TEST\n", expectedSha256: originalSha });
-  check("5. propose write returns proposal + token", prop.proposal_id && prop.approval_token && prop.approval_token.length === 8, `id=${prop.proposal_id}`);
+  check("5. propose write returns proposal + token", prop.proposal_id && prop.approval_token && prop.approval_token.length === 64, `id=${prop.proposal_id}`);
 
   const badApprove = await invoke("broker_approve", { proposalId: prop.proposal_id, approvalToken: "000000" });
   check("6. wrong approval token rejected", badApprove?.__err, JSON.stringify(badApprove));
