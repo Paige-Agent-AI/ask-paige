@@ -27,14 +27,23 @@ lockfiles are the actual pinning mechanism):
 | MSVC toolset | — | 14.44.35207 |
 | Windows SDK | — | 10.0.26100.0 |
 
-## Security status
+## Security status (Increment 1A)
 
-**This shell is not hardened.** `tauri.conf.json` currently sets `"csp": null`,
-so there is no Content Security Policy. The only capability granted is
-`core:default`; the template's `opener:default` grant was removed because it
-exposed unscoped path reveal that the UI never used. No native broker, no
-permission enforcement and no approval gate exist yet. Do not load untrusted
-content into this shell until CSP and the broker land.
+- **CSP is now enforced.** Production policy is `default-src 'self'`,
+  `script-src 'self'`, `style-src 'self'`, `connect-src 'self' ipc:
+  http://ipc.localhost`, `object-src 'none'`, `frame-ancestors 'none'`, etc.
+  No `unsafe-eval`, no `unsafe-inline`, no external origins, no wildcard.
+- **Capability set is minimal:** `core:event:default`, `core:window:default`,
+  `core:app:default`. No fs, shell, http, opener, process, dialog, clipboard,
+  os, webview-creation or resources permissions.
+- **No Tauri plugins** (opener removed; no fs/shell/http/opener crates or npm
+  packages).
+- Development relaxations live only in `devCsp` and never weaken production.
+- **Still not hardened:** no native broker, no approval gate, no file/terminal
+  access, `npm audit` is a snapshot. Details and test results:
+  `docs/INCREMENT-1A-EVIDENCE.md`.
+
+Known limitations: `docs/INCREMENT-0-EVIDENCE.md` §7.
 
 Known limitations are enumerated in `docs/INCREMENT-0-EVIDENCE.md` §7.
 

@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "node scripts/test-security-config.mjs",
+    "test:security": "node scripts/test-security-config.mjs",
+    "test:security:runtime": "node scripts/test-csp-runtime.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
