@@ -26,6 +26,9 @@ pub fn run() {
             broker::broker_deny,
             broker::broker_cancel,
             broker::broker_apply,
+            broker::broker_reconcile,
+            #[cfg(feature = "insecure-test-bypass")]
+            broker::broker_test_force_readback_failure,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

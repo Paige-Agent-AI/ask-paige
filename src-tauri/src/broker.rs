@@ -102,7 +102,7 @@ pub struct FileReadResult {
 pub struct ProposalInfo {
     pub proposal_id: String,
     pub path: String,
-    pub current_sha256: String,
+    pub before_sha256: String,
     pub approval_token: String,
     pub expires_in_seconds: u64,
     pub new_size: usize,
@@ -154,11 +154,13 @@ struct Proposal {
     rel_path: String,
     new_content: String,
     expected_sha256: String,
-    current_sha256: String,
+    before_sha256: String,
+    proposed_sha256: String,
     status: ProposalStatus,
     created_at: u64,
     approved_at: Option<u64>,
     approval_token: String,
+    force_readback_failure: bool,
 }
 
 pub struct BrokerState {
@@ -376,6 +378,58 @@ pub fn broker_operations(state: tauri::State<Mutex<BrokerState>>) -> Vec<Operati
     state.lock().unwrap().operations.clone()
 }
 
+#[derive(Clone, Serialize)]
+pub struct ReconcileResult {
+    pub proposal_id: String,
+    pub path: String,
+    pub current_sha256: String,
+    pub before_sha256: String,
+    pub after_sha256: String,
+    pub outcome: String,
+}
+
+#[tauri::command]
+#[cfg(feature = "insecure-test-bypass")]
+pub fn broker_test_force_readback_failure(
+    state: tauri::State<Mutex<BrokerState>>,
+    proposal_id: String,
+    fail: bool,
+) -> Result<String, String> {
+    let mut s = state.lock().unwrap();
+    let p = s.proposals.get_mut(&proposal_id).ok_or("unknown proposal")?;
+    p.force_readback_failure = fail;
+    Ok(format!("force_readback_failure set to {fail}"))
+}
+
+#[tauri::command]
+pub fn broker_reconcile(
+    state: tauri::State<Mutex<BrokerState>>,
+    proposal_id: String,
+) -> Result<ReconcileResult, String> {
+    let (path, before, after) = {
+        let s = state.lock().unwrap();
+        let p = s.proposals.get(&proposal_id).ok_or("unknown proposal")?;
+        (p.path.clone(), p.before_sha256.clone(), p.proposed_sha256.clone())
+    };
+    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+    let current = sha256_hex(&bytes);
+    let outcome = if current == after {
+        "matches_after"
+    } else if current == before {
+        "matches_before"
+    } else {
+        "unknown"
+    };
+    Ok(ReconcileResult {
+        proposal_id,
+        path: display_path(&path),
+        current_sha256: current,
+        before_sha256: before,
+        after_sha256: after,
+        outcome: outcome.to_string(),
+    })
+}
+
 #[tauri::command]
 pub fn broker_status(state: tauri::State<Mutex<BrokerState>>) -> BrokerStatus {
     let s = state.lock().unwrap();
@@ -547,18 +601,20 @@ pub fn broker_propose_write(
         rel_path: rel,
         new_content: new_content.clone(),
         expected_sha256: expected_sha256.clone(),
-        current_sha256: current_sha.clone(),
+        before_sha256: current_sha.clone(),
+        proposed_sha256: sha256_hex(new_content.as_bytes()),
         status: ProposalStatus::Pending,
         created_at: now_secs(),
         approved_at: None,
         approval_token: token.clone(),
+        force_readback_failure: false,
     };
     s.proposals.insert(id.clone(), proposal);
 
     Ok(ProposalInfo {
         proposal_id: id,
         path: display_path(&canon),
-        current_sha256: current_sha,
+        before_sha256: current_sha.clone(),
         approval_token: token,
         expires_in_seconds: APPROVAL_TTL_SECS,
         new_size: new_content.len(),
@@ -599,7 +655,7 @@ pub fn broker_approve(
             "PAIGE Desktop - approve file write?\\n\\nTarget: {}\\nSession: {}\\n\\nSHA-256 before: {}\\nSHA-256 after : {}\\nBytes: {}\\n\\nApprove this write?",
             display_path(&p.path),
             session_id,
-            p.current_sha256,
+            p.before_sha256,
             proposed_hash,
             p.new_content.len()
         );
@@ -739,24 +795,22 @@ pub fn broker_apply(
     let after_bytes = fs::read(&canon).map_err(|e| e.to_string())?;
     let after_sha = sha256_hex(&after_bytes);
     let expected_after = sha256_hex(new_content.as_bytes());
-    let verified = after_sha == expected_after;
+    let force_fail = {
+        let s = state.lock().unwrap();
+        s.proposals.get(&proposal_id).map(|p| p.force_readback_failure).unwrap_or(false)
+    };
+    let verified = !force_fail && after_sha == expected_after;
 
     // Update proposal status.
     {
         let mut s = state.lock().unwrap();
         if let Some(p) = s.proposals.get_mut(&proposal_id) {
-            p.status = if verified { ProposalStatus::Applied } else { ProposalStatus::Cancelled };
-            p.current_sha256 = after_sha.clone();
+            p.status = if verified { ProposalStatus::Applied } else { ProposalStatus::Failed };
+            p.force_readback_failure = false;
         }
     }
 
-    if !verified {
-        let mut s = state.lock().unwrap();
-        if let Some(p) = s.proposals.get_mut(&proposal_id) {
-            p.status = ProposalStatus::Failed;
-        }
-        return Err("readback verification failed".to_string());
-    }
+    let outcome = if verified { "committed_verified" } else { "committed_unverified" };
 
     // Record the operation (session-scoped, minimal local record).
     {
@@ -769,17 +823,20 @@ pub fn broker_apply(
             path: display_path(&canon),
             before_sha256: before_sha.clone(),
             after_sha256: after_sha.clone(),
-            outcome: "committed_verified".to_string(),
+            outcome: outcome.to_string(),
         });
     }
 
+    // A committed-but-unverified write returns a structured receipt (not an
+    // opaque error) so callers can reconcile instead of blindly retrying.
+    // Pre-commit failures still return Err above.
     Ok(WriteReceipt {
         path: display_path(&canon),
         before_sha256: before_sha,
         after_sha256: after_sha,
         bytes_written: new_content.len(),
-        readback_verified: true,
-        outcome: "committed_verified".to_string(),
+        readback_verified: verified,
+        outcome: outcome.to_string(),
     })
 }
 

@@ -72,6 +72,8 @@ const allowed = new Set([
   "allow-broker-cancel",
   "allow-broker-apply",
   "allow-broker-operations",
+  "allow-broker-reconcile",
+  "allow-broker-test-force-readback-failure",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];

@@ -18,6 +18,8 @@
     "allow-broker-deny",
     "allow-broker-cancel",
     "allow-broker-apply",
-    "allow-broker-operations"
+    "allow-broker-operations",
+    "allow-broker-reconcile",
+    "allow-broker-test-force-readback-failure"
   ]
 }
