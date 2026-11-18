@@ -1,2 +1,0 @@
-cargo:rustc-link-search=native=C:\Users\tonig\paige-desktop\src-tauri\target-test\release\build\webview2-com-sys/a7829bfb87f99494\out\x64
-cargo:rustc-link-lib=advapi32

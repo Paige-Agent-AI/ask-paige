@@ -35,3 +35,7 @@ dist-ssr
 .npmrc
 id_rsa*
 credentials*
+
+# Rust build output (alternate target dir used for test-mode builds)
+target-test/
+
