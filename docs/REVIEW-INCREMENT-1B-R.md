@@ -1,68 +1,85 @@
-# Independent Review — Increment 1B-R (final)
+# Independent Review — Increment 1B-R (exact-head)
 
-**Reviewer:** separately spawned non-author agent
-**Access:** read-only — source reads, git plumbing, running the four specified
-test suites
-**Reviewer authored any of this work:** No
-
----
-
-## Verdict
-
-**ACCEPT WITH FINDINGS** — the 1B-R closeout is functionally complete and all
-four specified test suites pass, but the native owner-confirmation boundary
-remains unexercised by automation and the evidence document still carried stale
-hash/test-count/feature-name claims (corrected before commit).
+**Reviewer:** independent non-author subagent  
+**Repo:** `C:\Users\tonig\paige-desktop`  
+**Branch:** `feat/paige-desktop-prototype`  
+**Reviewed commit (exact HEAD):** `dab842d684d338dd811c1c9c72b938d81fd56b8a`  
+**Access:** read-only — source inspection, git plumbing, test execution, hash verification  
+**Reviewer authored any of this work:** No  
 
 ---
 
-## Findings and disposition
+## 1. Independence statement
 
-| # | Severity | Finding | Disposition |
-|---|---|---|---|
-| 1 | **High** | Native owner-confirmation boundary only proven by inspection; no automated test exercises the dialog. | **Recorded as limitation.** The production binary lacks the bypass string (verified), so a production build requires the dialog. Manual verification by the owner is required. |
-| 2 | **Medium** | `broker_apply` releases the state lock between the `Applying` transition and the commit; a `broker_revoke` issued after the single pre-write `revoked` check cannot stop the commit. | **Recorded.** The evidence wording already says "prevents uncommitted changes where possible." |
-| 3 | **Medium** | Readback failure returns `Err` with no `WriteReceipt`, despite the evidence implying a receipt on failure. | **Recorded.** Evidence wording corrected to state that `broker_apply` returns `Err` on readback failure. |
-| 4 | Low | `validate_path` does not reject 8.3 short names reliably (heuristic), reserved device names with extensions (handled via stem split), control characters. | **Partially addressed** — trailing spaces/dots, reserved names, control chars and an 8.3 heuristic are now rejected. |
-| 5 | Low | The `insecure-test-bypass` feature name is generic and could be enabled accidentally. | **Recorded.** Name is deliberately alarming; CI should deny it. |
-| 6 | Low | `broker_operations` exposes the full in-memory operation log to any window capable of invoking it. | **Recorded.** Mitigated by capability scoping to `main`. |
-| 7 | Medium | Evidence doc was stale (hash, test counts, feature name). | **Fixed** — hash `DC21919D…`, 11/11 unit tests, `insecure-test-bypass`. |
-| 8 | Info | `cargo test --lib` runs debug profile; runtime tests use release binary. | **Recorded.** |
-| 9 | Info | `target-test/` (~4.38 GB) is untracked and consumes disk. | **Recorded.** |
-| 10 | Info | `broker_grant_root` cancels `Applying` proposals on re-grant, but an in-flight apply continues. | **Recorded.** |
+I confirm that I did **not** write or co-author the changes in Increment 1B-R. The commit `dab842d` was authored by **PAIGE Desktop Builder <builder@paige.local>** before this review session. During this review I performed only read-only inspection, test execution, and hash verification; I did not create, modify, delete, move, or commit any files.
 
 ---
 
-## Reviewer confirmations (summarised)
+## 2. Per-file inspection summary
 
-- Repository isolation, lab repo clean, README restored to `A39E33F4…`.
-- Build artifact: 4,378,624 bytes, SHA-256 `022A81E79FB3EE00ABE1414F3630691D96EE3ACCAFCFD0F2A8BFEEC3CDD40153`, unsigned, mtime after source.
-- Test-mode bypass compiled out of the production binary (string absent); present in the test-mode binary.
-- Rust unit tests: 11/11 pass. Static: 41/41. CSP runtime: 10/10. Broker runtime: 22/22.
-- Cryptographic authorization: `BCryptGenRandom` (32 bytes), native `MessageBoxW` unless `insecure-test-bypass` feature.
-- Path security: trailing spaces/dots, reserved device names (with extensions), control chars, 8.3 aliases, UNC, ADS, traversal all rejected.
-- Write safety: size pre-check, atomic replace, readback verification, status transitions, concurrency guard, revoked flag, TTL from approval.
-- IPC: minimal capability set, no plugin perms.
-- UI: Apply button disabled until approved.
-- Lab repo: clean, README hash matches.
-
----
-
-## Not verifiable by the reviewer
-
-- Interactive `MessageBoxW` appearance and owner clickability.
-- OS-level fsync/crash durability.
-- Whether any production launcher sets `PAIGE_BROKER_TEST_MODE`.
-- "No production writes" beyond the local broker allowlist.
-- Whether shipping an unsigned binary is acceptable under release policy.
-- Expired-approval path and broker runtime behavior against the final production binary.
+| File | Summary |
+|---|---|
+| `src-tauri/src/broker.rs` | Native file-authority broker. Compile-time root allowlist (`C:\Users\tonig\paige-desktop-lab` only). Secure 32-byte approval tokens from `BCryptGenRandom`. Native `MessageBoxW` owner-approval dialog, with test bypass gated by the `insecure-test-bypass` Cargo feature **and** `PAIGE_BROKER_TEST_MODE=1`. Strong path validation (traversal, absolute/UNC, ADS, reparse points, reserved device names, control chars, trailing spaces/dots, 8.3 aliases). Write flow uses propose → approve → apply, checksum binding, atomic temp-file + rename, readback verification, and a `committed_unverified` receipt path. Reconcile command added. Test hook `broker_test_force_readback_failure` is `#[cfg(feature = "insecure-test-bypass")]` gated. |
+| `src-tauri/src/lib.rs` | Registers all production broker commands plus `greet`. The test hook is registered under `#[cfg(feature = "insecure-test-bypass")]`. State managed as `Mutex<BrokerState>`. |
+| `src-tauri/build.rs` | Declares the Tauri app-command ACL. The test hook command name is listed **unconditionally**, even though its handler is compiled out in production. This is a configuration-hygiene issue, not an exploitable flaw. |
+| `src-tauri/capabilities/default.json` | Minimal grants: core event/window/app defaults and the explicit broker command allows. The test-hook permission `allow-broker-test-force-readback-failure` is granted here. Because the handler is absent from production, the permission is effectively inert. |
+| `src-tauri/tauri.conf.json` | Production CSP is strict (`'self'` for default/script/style, `data:` only for img/font, `ipc:` / `http://ipc.localhost` for connect, `'none'` for object/media/frame-ancestors). Dev CSP is separate and relaxed. No external network egress in production. |
+| `scripts/test-broker-runtime.mjs` | 26 runtime checks against the real executable (test-mode binary). Exercises grant, list, read, propose, approve (bad/good token), apply, committed-but-unverified/reconcile, replay rejection, deny, cancel, revoke, path traversal/ADS/UNC/absolute blocking, and content restoration. |
+| `scripts/test-security-config.mjs` | 41 static checks: CSP policy shape, no `unsafe-eval`/`unsafe-inline`/wildcards, no external origins, minimal capability set, no forbidden Tauri plugins, no remote references in HTML, embedded CSP evidence in binary. |
+| `scripts/test-csp-runtime.mjs` | 10 runtime CSP checks via CDP: app renders, local assets load, Tauri IPC works, external HTTPS fetch blocked, remote script blocked, inline script blocked, inline event handler blocked, external WebSocket blocked, no fs/shell/http bridge exposed. |
 
 ---
 
-## Reviewer independence statement
+## 3. Regression test totals
 
-I did not author, co-author or assist with this increment. I reviewed the
-uncommitted working tree directly (including `broker.rs`, `lib.rs`, `App.tsx`,
-capability config and test scripts), ran the four specified test suites
-read-only, and made no file modifications. My findings are based solely on
-source code and observed test output.
+| Suite | Result |
+|---|---|
+| `cd src-tauri && cargo test --lib` | **11 passed, 0 failed** |
+| `npm run test:security` | **41/41 passed** |
+| `npm run test:security:runtime` | **10/10 passed** |
+| `npm run test:broker:runtime` (test-mode binary) | **26/26 passed** |
+
+Test-mode binary used: `C:\Users\tonig\paige-desktop\src-tauri\target-test\release\paige-desktop.exe`  
+Built with `insecure-test-bypass`; verified to contain `PAIGE_BROKER_TEST_MODE` logic.
+
+---
+
+## 4. Production binary verification
+
+| Property | Value |
+|---|---|
+| Path | `C:\Users\tonig\paige-desktop\src-tauri\target\release\paige-desktop.exe` |
+| Size | **4,398,592 bytes** |
+| SHA-256 | **`2F83B69F4C9E935921CD87CC008A12D305D112DDFF1C25DE7A323FB5071D7161`** |
+| Contains `PAIGE_BROKER_TEST_MODE` | **No** |
+| `broker_test_force_readback_failure` invoke against production binary | **`{"__err":"Command broker_test_force_readback_failure not found"}`** |
+
+The test-only hook is isolated from the production binary.
+
+---
+
+## 5. Verdict
+
+**ACCEPT WITH FINDINGS**
+
+No material unresolved security vulnerability was found within the Increment 1B-R prototype scope. The findings below are configuration hygiene items or accepted prototype limitations.
+
+---
+
+## 6. Findings and accepted limitations
+
+### Findings
+1. **Test-only command declared in production manifest/capability (LOW / informational).**  
+   `src-tauri/build.rs` and `src-tauri/capabilities/default.json` list/reference `broker_test_force_readback_failure` unconditionally. The command handler is compiled out of the production binary, so IPC calls return `"Command ... not found"`. For future hardening, the manifest entry and capability grant should be generated only when `insecure-test-bypass` is enabled (e.g., via a separate test capability).
+
+### Accepted limitations (explicitly scoped to this prototype)
+2. Atomic file replacement uses rename; directory `fsync` is best-effort.
+3. The `Applying` concurrency guard mitigates but does not fully eliminate the TOCTOU window.
+4. Proposals are never evicted; memory use grows over long sessions.
+5. Native owner dialog requires an interactive desktop session; headless runs fail closed.
+6. No terminal, Git, inference, agent orchestration, or broad filesystem/shell access is introduced.
+7. Working tree contains an uncommitted modification to `docs/INCREMENT-1B-R-EVIDENCE.md`. This was present before the review; I did not modify it.
+
+---
+
+**Review completed:** All required inspections and regression suites executed against the exact final commit `dab842d`. No files were modified. No commits were made.
