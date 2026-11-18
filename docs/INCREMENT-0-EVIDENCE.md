@@ -228,6 +228,11 @@ corrected. The rebuild is the artifact that matches HEAD of this document.
 | `opener` in `package-lock.json` | 0 matches |
 | Disk free after | 9.64 GB |
 
+**Runtime check on this exact artifact:** launched, alive and responding after
+8s, window title `paige-desktop`, window handle 1639608, working set 26.6 MB,
+10 threads, child `msedgewebview2.exe` (pid 24868) present, stopped cleanly 2s
+after the kill request. Transcript: `docs/evidence/runtime-probe-postreview.log`.
+
 The earlier artifact (`8F7DF40F…`, 13,016,576 bytes, §5.3) was produced before
 these corrections and is superseded. Both hashes are retained so the change is
 auditable rather than silently overwritten.
