@@ -59,12 +59,17 @@ scoped to its own temporary working directories:
 
 No user file, application, cache or repository was ever a target.
 
-**Attribution for the observed removals is unknown.** Only timing is evidenced.
-One relevant fact: **Windows Storage Sense is enabled** on this machine
+**Attribution — confirmed by the owner.** After this closeout was first
+written, the owner stated: *"I deleted those things myself."* The Recycle Bin
+emptying, the `Roaming\Cursor` removal and the Hermes MSIX uninstall were
+**owner actions**, performed manually and independently of the auditing agent.
+The free-space increase from 9.63 GB to 40.80 GB is therefore owner-initiated
+recovery, not agent recovery.
+
+For the record: **Windows Storage Sense is enabled** on this machine
 (`StoragePolicy 01 = 1`), which can empty the Recycle Bin and temporary files
-automatically. Storage Sense **cannot** uninstall applications, so it does not
-explain the Cursor or Hermes removals. Those required an uninstall action by a
-person or another agent. No claim is made about which.
+automatically. It cannot uninstall applications, so it was never a sufficient
+explanation for the Cursor or Hermes removals — hence the owner confirmation.
 
 ---
 
