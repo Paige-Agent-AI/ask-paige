@@ -121,7 +121,7 @@ packages are present.
 
 | Suite | Result |
 |---|---|
-| Rust unit tests (`cargo test --lib`) | **5/5 pass** |
+| Rust unit tests (`cargo test --lib`) | **11/11 pass** |
 | Static security tests (`npm run test:security`) | **41/41 pass** |
 | CSP runtime tests (`npm run test:security:runtime`) | **10/10 pass** |
 | Broker runtime tests (`npm run test:broker:runtime`) | **22/22 pass** |
@@ -158,8 +158,8 @@ partially addressed. The remaining findings are recorded as limitations.
 | Frontend build | `tsc && vite build`, exit 0, 19 modules, 221.24 kB JS |
 | Native build | exit 0, ~2m 30s, 0 errors |
 | Artifact | `src-tauri/target/release/paige-desktop.exe` |
-| Size | 4,377,088 bytes (4.17 MB) |
-| SHA-256 | `0F04FA911729194CDFED9B049600C13FEF68ABB93E7891D9CC53273B4D6FA9A2` |
+| Size | 4,378,624 bytes (4.17 MB) |
+| SHA-256 | `DC21919DEC1BE86E42E97E2981B0B27C1971CC64CCE9BFF45469F14224822116` |
 | Signature | NotSigned |
 | Runtime | window `paige-desktop`, WebView2 child spawned, clean exit |
 | Broker commands in binary | all 10 present |

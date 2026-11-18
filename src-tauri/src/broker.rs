@@ -229,6 +229,11 @@ fn display_path(p: &Path) -> String {
     }
 }
 
+fn is_expired(created_at: u64, approved_at: Option<u64>, now: u64) -> bool {
+    let base = approved_at.unwrap_or(created_at);
+    now.saturating_sub(base) > APPROVAL_TTL_SECS
+}
+
 fn validate_text(content: &str) -> Result<(), String> {
     if content.len() > MAX_FILE_BYTES {
         return Err(format!("content exceeds the {MAX_FILE_BYTES}-byte limit"));
@@ -269,6 +274,23 @@ fn validate_path(root: &Path, input: &str) -> Result<PathBuf, String> {
                 }
                 if s.ends_with(' ') || s.ends_with('.') {
                     return Err("trailing spaces or dots are not allowed (Windows path aliasing)".to_string());
+                }
+                // Control characters are never valid in Windows filenames.
+                if s.chars().any(|ch| ch.is_control()) {
+                    return Err("control characters are not allowed".to_string());
+                }
+                // Reserved DOS device names (case-insensitive, with or without extension).
+                let upper = s.to_uppercase();
+                let stem = upper.split('.').next().unwrap_or("");
+                let reserved = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4",
+                    "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3",
+                    "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"];
+                if reserved.contains(&stem) {
+                    return Err("reserved Windows device name is not allowed".to_string());
+                }
+                // Heuristic: 8.3 short-name aliases contain a tilde followed by a digit.
+                if s.contains('~') && s.chars().any(|ch| ch.is_ascii_digit()) {
+                    return Err("8.3 short-name alias is not allowed".to_string());
                 }
             }
         }
@@ -555,7 +577,7 @@ pub fn broker_approve(
     if p.status != ProposalStatus::Pending {
         return Err(format!("proposal is not pending (status: {:?})", p.status));
     }
-    if now_secs().saturating_sub(p.created_at) > APPROVAL_TTL_SECS {
+    if is_expired(p.created_at, None, now_secs()) {
         p.status = ProposalStatus::Expired;
         return Err("approval expired".to_string());
     }
@@ -567,7 +589,10 @@ pub fn broker_approve(
     // A test-only escape hatch (PAIGE_BROKER_TEST_MODE=1) skips the dialog so
     // automated tests can exercise the full flow. It is never set in a normal
     // production launch; the production binary requires the native dialog.
+    #[cfg(feature = "insecure-test-bypass")]
     let test_mode = std::env::var("PAIGE_BROKER_TEST_MODE").ok().as_deref() == Some("1");
+    #[cfg(not(feature = "insecure-test-bypass"))]
+    let test_mode = false;
     if !test_mode {
         let proposed_hash = sha256_hex(p.new_content.as_bytes());
         let msg = format!(
@@ -633,8 +658,7 @@ pub fn broker_apply(
         if p.status != ProposalStatus::Approved {
             return Err("proposal is not approved".to_string());
         }
-        let approved_at = p.approved_at.unwrap_or(p.created_at);
-        if now_secs().saturating_sub(approved_at) > APPROVAL_TTL_SECS {
+        if is_expired(p.created_at, p.approved_at, now_secs()) {
             p.status = ProposalStatus::Expired;
             return Err("approval expired".to_string());
         }
@@ -803,5 +827,54 @@ mod tests {
     fn rejects_missing_file() {
         let r = tmp_root();
         assert!(validate_path(&r, "does-not-exist.txt").is_err());
+    }
+
+    #[test]
+    fn rejects_trailing_spaces_and_dots() {
+        let r = tmp_root();
+        let _ = fs::write(r.join("trail.txt"), "x");
+        assert!(validate_path(&r, "trail.txt ").is_err());
+        assert!(validate_path(&r, "trail.txt.").is_err());
+    }
+
+    #[test]
+    fn rejects_reserved_device_names() {
+        let r = tmp_root();
+        let _ = fs::write(r.join("CON"), "x");
+        let _ = fs::write(r.join("nul.txt"), "x");
+        assert!(validate_path(&r, "CON").is_err());
+        assert!(validate_path(&r, "nul.txt").is_err());
+    }
+
+    #[test]
+    fn rejects_control_chars() {
+        let r = tmp_root();
+        let bad = format!("hel{}lo.txt", '\u{0001}');
+        assert!(validate_path(&r, &bad).is_err());
+    }
+
+    #[test]
+    fn rejects_8_3_alias() {
+        let r = tmp_root();
+        let _ = fs::write(r.join("PROGRA~1.txt"), "x");
+        assert!(validate_path(&r, "PROGRA~1.txt").is_err());
+    }
+
+    #[test]
+    fn expiry_uses_approval_time() {
+        // Approved late in the window gets the full TTL from approval.
+        assert!(!is_expired(0, Some(100), 100 + APPROVAL_TTL_SECS - 1));
+        assert!(is_expired(0, Some(100), 100 + APPROVAL_TTL_SECS + 1));
+        // No approval time falls back to creation time.
+        assert!(!is_expired(100, None, 100 + APPROVAL_TTL_SECS - 1));
+        assert!(is_expired(100, None, 100 + APPROVAL_TTL_SECS + 1));
+    }
+
+    #[test]
+    fn approval_token_is_long() {
+        // 32 random bytes -> 64 hex chars
+        let mut buf = [0u8; 32];
+        os_random_bytes(&mut buf).unwrap();
+        assert_eq!(hex::encode(buf).len(), 64);
     }
 }
