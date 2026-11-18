@@ -119,11 +119,15 @@ run on a harmless `info:` line.
 | Property | Value |
 |---|---|
 | Branch | `feat/paige-desktop-prototype` |
-| Commit | `435671f72ced5561339ce648000076b92f102d00` |
+| Commit 1 (scaffold) | `435671f72ced5561339ce648000076b92f102d00` — 39 files |
+| Commit 2 (evidence + versions) | `f532907f84115c4ab2b29818908bf917d2df2dd6` — 41 files |
+| Commit 3 | post-review corrections (see §10); the commit containing this document |
 | Author | PAIGE Desktop Builder `<builder@paige.local>` |
-| Files | 39 |
 | `git-common-dir` | `.git` — **own repository, not a worktree of production** |
 | Remotes | **none** |
+
+`src-tauri/Cargo.lock` enters at commit 2, so dependency resolution is pinned
+from that commit onward, not from commit 1.
 
 Independence from the production repository is machine-verified: `git rev-parse
 --git-common-dir` returns `.git` locally, and `git remote -v` returns nothing.
@@ -207,20 +211,61 @@ further space.
 
 ---
 
+### 5.6 Post-review rebuild (current artifact of record)
+
+After the independent review, the opener plugin was removed and the source
+corrected. The rebuild is the artifact that matches HEAD of this document.
+
+| Property | Value |
+|---|---|
+| `cargo build` | exit 0, **2m 30s**, warning lines: 0, error lines: 0 |
+| Frontend | `tsc && vite build` exit 0, 19 modules, 221.24 kB JS (gzip 69.27 kB), 225 ms |
+| Artifact | `src-tauri\target\debug\paige-desktop.exe` |
+| Size | 12,572,160 bytes (11.99 MB) |
+| SHA-256 | `F7FB2D4172E38FF08385C87262BF73DFCD6BA18B89215C2BADFE12C2ADF4E357` |
+| Signature | NotSigned |
+| `opener` in `Cargo.lock` | 0 matches |
+| `opener` in `package-lock.json` | 0 matches |
+| Disk free after | 9.64 GB |
+
+The earlier artifact (`8F7DF40F…`, 13,016,576 bytes, §5.3) was produced before
+these corrections and is superseded. Both hashes are retained so the change is
+auditable rather than silently overwritten.
+
+Note: the full recompile of `tauri`/`wry`/`tao` increased on-disk usage by
+roughly 2.3 GB of incremental artifacts. Disk headroom is now 9.64 GB.
+
+---
+
 ## 6. Reproduction
 
 ```powershell
 git clone --branch feat/paige-desktop-prototype <repo> paige-desktop
 cd paige-desktop
-npm install
-npm run build
+npm ci                                  # lockfile-exact, not "npm install"
+npm run build                           # tsc && vite build -> dist/
 cd src-tauri
 $env:CARGO_BUILD_JOBS = "2"
 cargo build
 ```
 
+Recorded environment for the build in this document:
+
+| Tool | Version |
+|---|---|
+| Node | v24.18.0 |
+| npm | 11.16.0 |
+| Rust channel | pinned by `rust-toolchain.toml` to 1.100.0 |
+| MSVC toolset | 14.44.35207 |
+| Windows SDK | 10.0.26100.0 |
+
 Expected artifact: `src-tauri\target\debug\paige-desktop.exe`.
-`Cargo.lock` is committed so dependency resolution is pinned.
+
+**Limits of this claim.** "Reproducible" here means the committed lockfiles and
+toolchain pin describe a build that another machine can attempt, not that the
+output is bit-identical. Rust builds are not bit-for-bit reproducible by
+default, and no provenance attestation exists. Raw build logs are preserved in
+`docs/evidence/` as self-reported transcripts.
 
 ---
 
@@ -238,6 +283,9 @@ Expected artifact: `src-tauri\target\debug\paige-desktop.exe`.
 | 8 | No agent protocol, no task state | No TASK_ASSIGNED / HANDOFF_* / REVIEW_RESULT signals, no orchestration adapter. |
 | 9 | Sequential execution not yet implemented | The Phase A concurrency limit of one active worker is a design ruling, not yet code. |
 | 10 | RAM tight during build | 2.61 GB free at start; build succeeded with `CARGO_BUILD_JOBS=2`. This is the basis for the one-worker Phase A ruling. |
+| 11 | ~~`opener:default` granted `reveal_item_in_dir` unscoped~~ | **Removed after independent review.** Plugin dropped from `Cargo.toml`, `lib.rs`, `capabilities/default.json` and `package.json`; confirmed absent from both lockfiles. Capability set is now `core:default` only. |
+| 12 | `TAURI_DEV_HOST`, if set, binds Vite/HMR to a non-local interface | Dev-only stock template behaviour. Do not set it on untrusted networks. |
+| 13 | Frontend and Tauri crate versions are caret/tilde ranges | Nothing was pinned. `package-lock.json` and `Cargo.lock` pin resolution for `npm ci` / `cargo build`; `rust-toolchain.toml` pins only the Rust channel. |
 
 **Nothing in this increment demonstrates:** bounded local file access, terminal
 execution, agent-to-agent handoff, independent review enforcement, approval
@@ -245,13 +293,52 @@ gating, or recovery from an interrupted task. Those are Increment 1 and later.
 
 ---
 
-## 8. Negative results worth recording
+## 8. Production non-interference — scoped correctly
 
-- No write of any kind to `Paige-Agent-AI` or any existing worktree.
-- No modification of `Paige-desktop-deploy`.
-- No production deploy, no installer published, no device privilege expanded.
-- No credential created, read or stored — no OpenRouter key exists yet.
-- No change to NEXUS Vibe Studio or PAIGE Model Fabric.
+An earlier version of this section asserted "no write of any kind" to the
+production repository and "no change to PAIGE Model Fabric". **That claim was
+wrong**, and the independent reviewer rejected it. Corrected statement:
+
+**What this increment's agent did:** no `git` write operation of any kind in
+`C:\Users\tonig\Paige-Agent-AI`, in any of its eight linked worktrees, or in
+`C:\Users\tonig\Paige-desktop-deploy`. All work on those repositories in this
+session was read-only inspection (`rev-parse`, `log`, `status`, `worktree
+list`, file reads). Identity used for this increment's commits is
+`PAIGE Desktop Builder <builder@paige.local>`.
+
+**What happened anyway, concurrently:** at **2026-11-18 09:19:24**, 21 seconds
+after this increment's commit, commit `320c33dbd5b52a2e588ecbd3a980921c81f93087`
+was created in the Model Fabric session's worktree
+`.../worktree/f7aba1/main-current` on branch
+`integration/ant-166-exp10-edge-reconciliation`, and `origin/main` was updated
+by push at **09:19:41** to that commit.
+
+| Property | Value |
+|---|---|
+| Commit | `320c33dbd5b52a2e588ecbd3a980921c81f93087` |
+| Author | Mr. Mogul Maker `<232259757+mrmogulmaker-bot@users.noreply.github.com>` |
+| Subject | revert OpenRouter primary Chat transport, restore working Spine routing |
+| Files | `model-fabric.ts`, `openai-responses.ts`, `openrouter-models.ts`, `paige-turn/route.ts`, `paige-turn/route.test.ts`, `provider-failure.ts` |
+| Diff | +74 / −240 |
+| `origin/main` | now at `320c33d` |
+
+This touched the customer-facing Model Fabric, which this charter places out of
+scope for this increment. It was **not** produced by this agent — the author
+identity, the worktree, and the subject line all belong to the concurrent Model
+Fabric session. It is recorded here because "the production routes were
+unchanged during Increment 0" is **not true**, and the owner needs to know that
+rather than read a clean claim.
+
+**Other statements that remain true:**
+
+- No production deploy performed by this agent.
+- No installer built, signed or published.
+- No device privilege expanded; this agent never held administrator rights.
+- No credential created, stored or read by this increment. This repository
+  contains no `.env`, key, token or credential file, and no secret pattern was
+  found in any tracked file. (This is a statement about **this repository**,
+  not about the machine.)
+- No NEXUS Vibe Studio repository was accessed or modified.
 
 ---
 
@@ -261,4 +348,31 @@ Reviewer requirements: separately spawned, did not author or assist this
 implementation, read-only access, findings reported to the owner who remains
 final approver.
 
-Review outcome is recorded separately in `docs/REVIEW-INCREMENT-0.md`.
+**Outcome: ACCEPT WITH FINDINGS** — 5 verified problem areas (3 major) across
+13 findings. Full report, reviewer independence statement and per-finding
+disposition are in `docs/REVIEW-INCREMENT-0.md`. The corrections arising from
+that review are described in §10.
+
+Reviewer acceptance is not owner acceptance.
+
+---
+
+## 10. Corrections made after independent review
+The independent reviewer returned ACCEPT WITH FINDINGS. The following were
+changed in response; the review of record is `docs/REVIEW-INCREMENT-0.md`.
+
+| Change | Reason |
+|---|---|
+| Removed `tauri-plugin-opener` from `Cargo.toml`, `lib.rs`, `capabilities/default.json`, `package.json` | The grant exposed unscoped `reveal_item_in_dir` and default URL schemes that the UI never used. Capability set is now `core:default` only. |
+| Added `rel="noopener noreferrer"` to all external anchors | Defense in depth in the webview. |
+| Added `rust-toolchain.toml` pinning channel 1.100.0 | The review found no Rust pin, so "reproducible" was overstated. |
+| Added `*.p12`, `*.pfx`, `*.jks`, `.npmrc`, `id_rsa*` to `.gitignore` | Credential-pattern coverage. |
+| Replaced stock Cargo metadata (`description`, `authors`) | Traceability. |
+| Corrected README version claims; marked orchestration-client role as future intent | The review found React resolved 19.3.1 (not 19.1.0) and the `tauri` crate 2.12.7 (not 2.7.6 — that is `tauri-build`), and that no contract client exists yet. |
+| Rescoped §8 production claims; recorded the concurrent `320c33d` Model Fabric commit and push | The original absolute claim was false. |
+| Rescoped the credential claim to this repository | A repo cannot prove a machine-wide negative. |
+| Committed raw build logs under `docs/evidence/` | "Zero warnings" was otherwise unverifiable. |
+| Changed reproduction to `npm ci` and recorded Node/npm | Lockfile-exact installs. |
+
+The rebuild that follows these changes was re-verified: see §5.6.
+

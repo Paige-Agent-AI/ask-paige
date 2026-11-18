@@ -29,4 +29,9 @@ dist-ssr
 !.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.jks
+.npmrc
+id_rsa*
 credentials*
