@@ -159,7 +159,7 @@ partially addressed. The remaining findings are recorded as limitations.
 | Native build | exit 0, ~2m 30s, 0 errors |
 | Artifact | `src-tauri/target/release/paige-desktop.exe` |
 | Size | 4,377,088 bytes (4.17 MB) |
-| SHA-256 | `FFD69AAE36D16950C67061BF9109BD17951E107DC79F1A688965ADD2303D65D4` |
+| SHA-256 | `0F04FA911729194CDFED9B049600C13FEF68ABB93E7891D9CC53273B4D6FA9A2` |
 | Signature | NotSigned |
 | Runtime | window `paige-desktop`, WebView2 child spawned, clean exit |
 | Broker commands in binary | all 10 present |
