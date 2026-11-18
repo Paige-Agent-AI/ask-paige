@@ -56,11 +56,28 @@ check("dev csp allows the vite dev server and hmr", flat(dev?.["connect-src"]).i
 
 // ---- 6. capability surface ----
 const perms = caps.permissions ?? [];
-const allowed = new Set(["core:event:default", "core:window:default", "core:app:default"]);
+const allowed = new Set([
+  "core:event:default",
+  "core:window:default",
+  "core:app:default",
+  "allow-greet",
+  "allow-broker-status",
+  "allow-broker-grant-root",
+  "allow-broker-revoke",
+  "allow-broker-list-files",
+  "allow-broker-read-file",
+  "allow-broker-propose-write",
+  "allow-broker-approve",
+  "allow-broker-deny",
+  "allow-broker-cancel",
+  "allow-broker-apply",
+  "allow-broker-operations",
+]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];
 for (const f of forbidden) {
-  check(`no ${f} plugin permission granted`, !perms.some((p) => p.includes(f)));
+  // match the plugin permission namespace, not a substring inside a command name
+  check(`no ${f} plugin permission granted`, !perms.some((p) => p === f || p.startsWith(`${f}:`) || p.startsWith(`${f}-`)));
 }
 check("no blanket core:default grant", !perms.includes("core:default"));
 check("no webview-creation permission (remote windows blocked)", !perms.some((p) => p.startsWith("core:webview")));

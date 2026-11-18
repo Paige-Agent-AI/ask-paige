@@ -101,19 +101,42 @@ Status values: `Pending`, `Approved`, `Applying`, `Applied`, `Denied`,
 
 ## F. Tauri custom-command ACL proof
 
-Capability file grants only:
+`src-tauri/build.rs` now uses `tauri_build::AppManifest::new().commands(&[...])`
+to register all 11 broker commands plus `greet`. This generates `allow-<command>`
+and `deny-<command>` permission identifiers and sets `has_app_acl_manifest`,
+which makes Tauri enforce the ACL on app commands for local origins.
+
+Capability file (`capabilities/default.json`) grants:
 
 ```
 core:event:default
 core:window:default
 core:app:default
+allow-greet
+allow-broker-status
+allow-broker-grant-root
+allow-broker-revoke
+allow-broker-list-files
+allow-broker-read-file
+allow-broker-propose-write
+allow-broker-approve
+allow-broker-deny
+allow-broker-cancel
+allow-broker-apply
+allow-broker-operations
 ```
 
 No fs, shell, http, opener, process, dialog, notification, clipboard, os,
 global-shortcut, deep-link, path, resources, image, webview-creation, menu or
-tray permission. Broker commands are invoked only from the main window because
-that is the only window with a capability file. No Tauri plugin crates or npm
-packages are present.
+tray permission. No Tauri plugin crates or npm packages are present.
+
+**Negative test (Gate 1):** a second window labeled `untrusted` was created with
+a capability granting only `core:default` (no `allow-broker-*`). Both windows
+loaded the app. `broker_status` succeeded from the main window and was rejected
+from the untrusted window. The untrusted window was then removed; the
+production configuration has a single window. The permission file and
+`AppManifest::commands` registration remain, so the ACL is enforced in
+production.
 
 ---
 
@@ -158,8 +181,8 @@ partially addressed. The remaining findings are recorded as limitations.
 | Frontend build | `tsc && vite build`, exit 0, 19 modules, 221.24 kB JS |
 | Native build | exit 0, ~2m 30s, 0 errors |
 | Artifact | `src-tauri/target/release/paige-desktop.exe` |
-| Size | 4,378,624 bytes (4.17 MB) |
-| SHA-256 | `3D90DD3F750B8E206D8DB50448F87FEFFBEC4C03411C3353C07388107F004994` |
+| Size | 4,391,936 bytes (4.19 MB) |
+| SHA-256 | `022A81E79FB3EE00ABE1414F3630691D96EE3ACCAFCFD0F2A8BFEEC3CDD40153` |
 | Signature | NotSigned |
 | Runtime | window `paige-desktop`, WebView2 child spawned, clean exit |
 | Broker commands in binary | all 10 present |

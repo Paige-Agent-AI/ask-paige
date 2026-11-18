@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-broker-read-file"
+description = "Enables the broker_read_file command without any pre-configured scope."
+commands.allow = ["broker_read_file"]
+
+[[permission]]
+identifier = "deny-broker-read-file"
+description = "Denies the broker_read_file command without any pre-configured scope."
+commands.deny = ["broker_read_file"]

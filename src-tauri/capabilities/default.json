@@ -6,6 +6,18 @@
   "permissions": [
     "core:event:default",
     "core:window:default",
-    "core:app:default"
+    "core:app:default",
+    "allow-greet",
+    "allow-broker-status",
+    "allow-broker-grant-root",
+    "allow-broker-revoke",
+    "allow-broker-list-files",
+    "allow-broker-read-file",
+    "allow-broker-propose-write",
+    "allow-broker-approve",
+    "allow-broker-deny",
+    "allow-broker-cancel",
+    "allow-broker-apply",
+    "allow-broker-operations"
   ]
 }

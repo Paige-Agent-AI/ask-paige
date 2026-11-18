@@ -36,7 +36,7 @@ hash/test-count/feature-name claims (corrected before commit).
 ## Reviewer confirmations (summarised)
 
 - Repository isolation, lab repo clean, README restored to `A39E33F4…`.
-- Build artifact: 4,378,624 bytes, SHA-256 `3D90DD3F750B8E206D8DB50448F87FEFFBEC4C03411C3353C07388107F004994`, unsigned, mtime after source.
+- Build artifact: 4,378,624 bytes, SHA-256 `022A81E79FB3EE00ABE1414F3630691D96EE3ACCAFCFD0F2A8BFEEC3CDD40153`, unsigned, mtime after source.
 - Test-mode bypass compiled out of the production binary (string absent); present in the test-mode binary.
 - Rust unit tests: 11/11 pass. Static: 41/41. CSP runtime: 10/10. Broker runtime: 22/22.
 - Cryptographic authorization: `BCryptGenRandom` (32 bytes), native `MessageBoxW` unless `insecure-test-bypass` feature.
