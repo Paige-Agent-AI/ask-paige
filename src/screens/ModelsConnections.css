@@ -196,6 +196,27 @@
   color: #f87171;
 }
 
+.connection-ok {
+  font-size: var(--pd-text-xs);
+  color: var(--pd-success);
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--pd-radius-sm);
+  padding: var(--pd-space-2);
+  line-height: 1.5;
+}
+
+.connection-error {
+  font-size: var(--pd-text-xs);
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--pd-radius-sm);
+  padding: var(--pd-space-2);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 .models-connections-locked h3 {
   font-size: var(--pd-text-base);
   font-weight: 600;

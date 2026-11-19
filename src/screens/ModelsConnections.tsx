@@ -106,6 +106,7 @@ export function ModelsConnections() {
                 <span>Catalog</span>
                 <span className="connection-card-value">{openrouter?.catalog_count ?? "—"} live models</span>
               </div>
+              <div className="connection-ok">Connected — key verified live against OpenRouter's authenticated credits endpoint and stored DPAPI-encrypted on this machine.</div>
               <Button variant="secondary" size="sm" onClick={ask.disconnectOpenrouter}>
                 Disconnect
               </Button>
@@ -129,6 +130,8 @@ export function ModelsConnections() {
                 against OpenRouter's authenticated credits endpoint before it is
                 stored (the public model catalog cannot validate a key).
               </p>
+              {ask.error && <div className="connection-error">{ask.error}</div>}
+              {!ask.error && connecting && <div className="connection-ok">Verifying the key against OpenRouter…</div>}
             </>
           )}
         </Card>

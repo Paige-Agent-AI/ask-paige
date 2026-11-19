@@ -36,6 +36,9 @@ export function AskPaige() {
   const [attachments, setAttachments] = useState<string[]>([]);
   const [contextRefs, setContextRefs] = useState<string[]>([]);
   const [modelChoice, setModelChoice] = useState<"auto" | string>("auto");
+  const [workspaceKey, setWorkspaceKey] = useState("");
+  const [workspaceConnecting, setWorkspaceConnecting] = useState(false);
+  const [workspaceMsg, setWorkspaceMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [slashOpen, setSlashOpen] = useState(false);
   const [atOpen, setAtOpen] = useState(false);
   const [atQuery, setAtQuery] = useState("");
@@ -164,8 +167,66 @@ export function AskPaige() {
   const omnirouteHealth = ask.status?.gateways.find((g) => g.gateway === "omniroute");
   const openrouterHealth = ask.status?.gateways.find((g) => g.gateway === "openrouter-direct");
 
+  const productionReady = !!(
+    omnirouteHealth?.authenticated || openrouterHealth?.authenticated
+  );
+
+  const connectFromWorkspace = async () => {
+    if (!workspaceKey.trim()) return;
+    setWorkspaceConnecting(true);
+    setWorkspaceMsg(null);
+    const ok = await ask.connectOpenrouter(workspaceKey.trim());
+    setWorkspaceConnecting(false);
+    if (ok) {
+      setWorkspaceMsg({ text: "Connected to OpenRouter. PAIGE can now use live models.", ok: true });
+      setWorkspaceKey("");
+    } else {
+      setWorkspaceMsg({ text: ask.error || "Connection failed. Check the key and try again.", ok: false });
+    }
+  };
+
   return (
     <div className="ask">
+      {!productionReady && (
+        <div className="ask-connect-banner">
+          <div className="ask-connect-banner-text">
+            <strong>Connect an inference gateway to use Ask PAIGE.</strong>
+            <span>
+              OmniRoute is currently {omnirouteHealth?.authenticated ? "ready" : "not ready"}. You can connect your
+              OpenRouter API key directly in the workspace to start using live models.
+            </span>
+          </div>
+          <div className="ask-connect-banner-row">
+            <input
+              type="password"
+              className="ask-connect-keyinput"
+              placeholder="sk-or-v1-…"
+              value={workspaceKey}
+              onChange={(e) => setWorkspaceKey(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !workspaceConnecting) connectFromWorkspace();
+              }}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={connectFromWorkspace}
+              disabled={workspaceConnecting || !workspaceKey.trim()}
+            >
+              {workspaceConnecting ? "Verifying…" : "Connect OpenRouter"}
+            </Button>
+          </div>
+          {workspaceMsg && (
+            <div className={`ask-connect-banner-msg ${workspaceMsg.ok ? "ok" : "err"}`}>
+              {workspaceMsg.text}
+            </div>
+          )}
+          <div className="ask-connect-banner-note">
+            Verified live against OpenRouter’s authenticated endpoint; stored DPAPI-encrypted on this machine only.
+          </div>
+        </div>
+      )}
+
       <div className="ask-transcript" ref={transcriptRef}>
         {messages.length === 0 && !ask.streamingText && (
           <div className="ask-empty">
