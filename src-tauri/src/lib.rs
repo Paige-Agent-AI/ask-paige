@@ -1,7 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod broker;
+mod terminal;
 
 use broker::BrokerState;
+use terminal::TerminalState;
 use std::sync::Mutex;
 
 #[tauri::command]
@@ -13,6 +15,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(BrokerState::new()))
+        .manage(Mutex::new(TerminalState::new()))
         .invoke_handler(tauri::generate_handler![
             greet,
             broker::broker_status,
@@ -29,6 +32,13 @@ pub fn run() {
             broker::broker_reconcile,
             #[cfg(feature = "insecure-test-bypass")]
             broker::broker_test_force_readback_failure,
+            terminal::terminal_execute,
+            terminal::terminal_execute_approved,
+            terminal::terminal_input,
+            terminal::terminal_kill,
+            terminal::terminal_list,
+            terminal::terminal_receipts,
+            terminal::terminal_output,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

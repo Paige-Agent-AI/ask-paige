@@ -74,6 +74,13 @@ const allowed = new Set([
   "allow-broker-operations",
   "allow-broker-reconcile",
   "allow-broker-test-force-readback-failure",
+  "allow-terminal-execute",
+  "allow-terminal-execute-approved",
+  "allow-terminal-input",
+  "allow-terminal-kill",
+  "allow-terminal-list",
+  "allow-terminal-receipts",
+  "allow-terminal-output",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];

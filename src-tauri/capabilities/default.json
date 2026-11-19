@@ -20,6 +20,13 @@
     "allow-broker-apply",
     "allow-broker-operations",
     "allow-broker-reconcile",
-    "allow-broker-test-force-readback-failure"
+    "allow-broker-test-force-readback-failure",
+    "allow-terminal-execute",
+    "allow-terminal-execute-approved",
+    "allow-terminal-input",
+    "allow-terminal-kill",
+    "allow-terminal-list",
+    "allow-terminal-receipts",
+    "allow-terminal-output"
   ]
 }

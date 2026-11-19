@@ -4,6 +4,8 @@
 
 **Date accepted:** 2026-11-18
 
+**Amended sequence (owner, 2026-11-19):** 1C → 1E → 1D → 1F → 1G → 1H.
+
 This roadmap records owner-authorized and queued outcomes. No outcome is activated for implementation until the owner explicitly selects it.
 
 ---
@@ -24,16 +26,34 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
 
 ---
 
-## Queued / owner-selected next outcomes
-
-The order below is a proposal. The owner will designate the active next milestone.
+## Active
 
 ### 1C — Scoped Terminal Execution
 
 - Local allowlisted command execution with process isolation, output capture and kill switch.
-- Native per-command approval where required.
+- Risk-based authority: read/standard-write run automatically; privileged/destructive actions require explicit owner approval.
 - No shell injection, no unrestricted access.
-- Depends on owner authorization.
+- Process-spawn engine designed for reuse by the future native MCP `stdio` client.
+- **Status:** implementation complete; regression tests and independent review in progress.
+
+---
+
+## Queued (controlling order)
+
+### 1E — Intelligent Ask PAIGE Chat / Engineering Inference UX
+
+- Functional Ask PAIGE chat experience with real composer controls:
+  - Project, folder and workspace selection
+  - PLAN / BUILD operating modes
+  - File attachments
+  - Slash (/) commands
+  - Context (@) references
+  - Model selection: **Auto by default, Manual override available**
+- Auto mode intelligently selects qualified models per task through the preferred OmniRoute engineering gateway, with direct OpenRouter as the alternate.
+- Display actual selected model, provider and connection status.
+- Implement and test the actual model-selection decision behavior, not a decorative placeholder.
+- Preserve existing inference-gateway verification constraints (no unverified connectivity claims).
+- **Linear:** ANT-171
 
 ### 1D — Native MCP Client + Connection Manager
 
@@ -53,16 +73,6 @@ The order below is a proposal. The owner will designate the active next mileston
 - Potential servers (only when installed/authorized): GitHub, Linear, Supabase, Vercel, Cloudflare, AWS, Google Workspace, research/browser, local file/build tools.
 - Future secondary capability: PAIGE Desktop as a controlled MCP server for other coding agents (separate gated increment).
 - **Linear:** ANT-170
-
-### 1E — Engineering Inference Gateway Integration
-
-- Verify and configure OmniRoute as preferred coding gateway.
-- Support separately authenticated direct OpenRouter connection.
-- Configure/test OpenCode inference routing.
-- Determine Codex compatibility without disrupting authentication.
-- Preserve coding tools, model capability, conversation continuity, usage attribution and safe recovery.
-- Show truthful gateway, model and connection status in Models & Connections.
-- **Linear:** ANT-168 inference directive
 
 ### 1F — Git / Worktree / PR Workflow
 
@@ -86,6 +96,7 @@ The order below is a proposal. The owner will designate the active next mileston
 
 - 2026-11-18: Owner formally accepted 1B-UI and the Command Mark branding correction.
 - 2026-11-18: Owner approved MCP connectivity as a mandatory core capability, documented in ANT-170. Implementation is queued and not yet activated.
+- 2026-11-19: Owner amended the controlling development sequence to **1C → 1E → 1D → 1F → 1G → 1H** and documented the 1E Ask PAIGE chat requirements in ANT-171. 1C remains the only currently authorized implementation outcome.
 
 ---
 

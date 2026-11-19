@@ -42,10 +42,25 @@
   line-height: 1.6;
   color: var(--pd-text-muted);
   margin-bottom: var(--pd-space-2);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .terminal-line-welcome {
   color: var(--pd-accent);
+}
+
+.terminal-line-stderr {
+  color: var(--pd-error, #ef4444);
+}
+
+.terminal-line-system {
+  color: var(--pd-warning, #f59e0b);
+}
+
+.terminal-actions {
+  display: flex;
+  gap: var(--pd-space-2);
 }
 
 .terminal-input-bar {
@@ -76,31 +91,27 @@
   color: var(--pd-text-dim);
 }
 
-.terminal-locked {
+.terminal-info {
   margin-top: var(--pd-space-4);
+  padding: var(--pd-space-4);
+}
+
+.terminal-info-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  padding: var(--pd-space-6);
-  opacity: 0.85;
-}
-
-.terminal-locked-icon {
+  justify-content: space-between;
+  gap: var(--pd-space-2);
+  font-size: var(--pd-text-xs);
   color: var(--pd-text-dim);
-  margin-bottom: var(--pd-space-3);
+  margin-bottom: var(--pd-space-2);
 }
 
-.terminal-locked h3 {
-  font-size: var(--pd-text-base);
-  font-weight: 600;
-  color: var(--pd-text);
-  margin: 0 0 var(--pd-space-2);
+.terminal-info-row:last-child {
+  margin-bottom: 0;
 }
 
-.terminal-locked p {
-  font-size: var(--pd-text-sm);
+.terminal-info-value {
   color: var(--pd-text-muted);
-  max-width: 520px;
-  margin: 0;
+  font-family: var(--pd-font-mono);
+  text-align: right;
 }

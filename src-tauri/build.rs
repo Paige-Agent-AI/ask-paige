@@ -15,6 +15,13 @@ fn main() {
         "broker_operations",
         "broker_reconcile",
         "broker_test_force_readback_failure",
+        "terminal_execute",
+        "terminal_execute_approved",
+        "terminal_input",
+        "terminal_kill",
+        "terminal_list",
+        "terminal_receipts",
+        "terminal_output",
     ]);
     let attributes = tauri_build::Attributes::new().app_manifest(app_manifest);
     tauri_build::try_build(attributes).expect("failed to run tauri-build");
