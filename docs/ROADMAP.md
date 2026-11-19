@@ -1,8 +1,6 @@
 # PAIGE Desktop Development Roadmap
 
-**Owner-accepted milestone:** Increment 1B-UI — dark PAIGE Desktop workstation shell with official Command Mark branding and verified Windows desktop launcher.
-
-**Date accepted:** 2026-11-18
+**Owner-accepted milestone:** Increment 1C — Scoped Terminal Execution (final reconciliation accepted 2026-11-19).
 
 **Amended sequence (owner, 2026-11-19):** 1C → 1E → 1D → 1F → 1G → 1H.
 
@@ -24,36 +22,42 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
 - **Review:** `docs/REVIEW-INCREMENT-1B-UI.md`, `docs/REVIEW-1B-UI-BRANDING.md`
 - **Linear:** ANT-168
 
+### 1C — Scoped Terminal Execution
+
+- Allowlisted command execution confined to authorized project roots, with output streaming, verified kill and receipts.
+- Risk-based authority: read/standard-write auto-run; privileged/destructive require explicit owner approval.
+- Fail-closed missing-root handling; Windows quoted-argument parsing; accurate stdout/stderr receipts.
+- Process engine designed for reuse by the future native MCP `stdio` client.
+- **Owner-accepted:** 2026-11-19 (after the final reconciliation pass).
+- **Evidence:** `docs/INCREMENT-1C-EVIDENCE.md`
+- **Reviews:** `docs/REVIEW-INCREMENT-1C.md`, `docs/REVIEW-INCREMENT-1C-CORRECTION.md`
+- **Linear:** ANT-168
+
 ---
 
 ## Active
 
-### 1C — Scoped Terminal Execution
+### 1E — Intelligent Ask PAIGE Chat / Engineering Inference UX
 
-- Local allowlisted command execution with process isolation, output capture and kill switch.
-- Risk-based authority: read/standard-write run automatically; privileged/destructive actions require explicit owner approval.
-- No shell injection, no unrestricted access.
-- Process-spawn engine designed for reuse by the future native MCP `stdio` client.
-- **Status:** implementation complete; regression tests and independent review in progress.
+- Functional Ask PAIGE composer: project selection, PLAN/BUILD modes, file
+  attachments, slash commands, @ context references, Auto (default) model
+  selection with manual override.
+- Fixed gateway table: OmniRoute preferred, direct OpenRouter alternate
+  (owner key connect, DPAPI-protected), test-only local harness for automated
+  tests.
+- Implemented + unit-tested auto model-selection policy with rationale and
+  receipts; streaming with cancellation.
+- Complete workflow: instruction → model → broker/terminal tools → real test
+  run → verified result + receipts.
+- **Status:** implementation complete; 152/152 regression checks; awaiting
+  owner acceptance. Live paid inference requires the owner to restore
+  OmniRoute's STORAGE_ENCRYPTION_KEY or connect an OpenRouter key.
+- **Evidence:** `docs/INCREMENT-1E-EVIDENCE.md`
+- **Linear:** ANT-171, ANT-168
 
 ---
 
 ## Queued (controlling order)
-
-### 1E — Intelligent Ask PAIGE Chat / Engineering Inference UX
-
-- Functional Ask PAIGE chat experience with real composer controls:
-  - Project, folder and workspace selection
-  - PLAN / BUILD operating modes
-  - File attachments
-  - Slash (/) commands
-  - Context (@) references
-  - Model selection: **Auto by default, Manual override available**
-- Auto mode intelligently selects qualified models per task through the preferred OmniRoute engineering gateway, with direct OpenRouter as the alternate.
-- Display actual selected model, provider and connection status.
-- Implement and test the actual model-selection decision behavior, not a decorative placeholder.
-- Preserve existing inference-gateway verification constraints (no unverified connectivity claims).
-- **Linear:** ANT-171
 
 ### 1D — Native MCP Client + Connection Manager
 
@@ -96,7 +100,8 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
 
 - 2026-11-18: Owner formally accepted 1B-UI and the Command Mark branding correction.
 - 2026-11-18: Owner approved MCP connectivity as a mandatory core capability, documented in ANT-170. Implementation is queued and not yet activated.
-- 2026-11-19: Owner amended the controlling development sequence to **1C → 1E → 1D → 1F → 1G → 1H** and documented the 1E Ask PAIGE chat requirements in ANT-171. 1C remains the only currently authorized implementation outcome.
+- 2026-11-19: Owner amended the controlling development sequence to **1C → 1E → 1D → 1F → 1G → 1H** and documented the 1E Ask PAIGE chat requirements in ANT-171.
+- 2026-11-19: Owner accepted Increment 1C after the final reconciliation and authorized Increment 1E.
 
 ---
 
