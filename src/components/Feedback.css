@@ -1,0 +1,21 @@
+.pd-feedback {
+  display: flex;
+  align-items: center;
+  gap: var(--pd-space-2);
+  padding: var(--pd-space-3) var(--pd-space-4);
+  border-radius: var(--pd-radius);
+  font-size: var(--pd-text-sm);
+  margin-bottom: var(--pd-space-4);
+}
+
+.pd-feedback-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.pd-feedback-notice {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}

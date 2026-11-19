@@ -1,0 +1,143 @@
+.approvals {
+  max-width: 900px;
+}
+
+.approvals-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pd-space-4);
+  margin-bottom: var(--pd-space-4);
+}
+
+.approvals-status {
+  font-size: var(--pd-text-sm);
+  display: flex;
+  align-items: center;
+}
+
+.approvals-status-granted {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pd-space-2);
+  color: var(--pd-success);
+}
+
+.approvals-status-denied {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pd-space-2);
+  color: var(--pd-text-muted);
+}
+
+.approvals-section-title {
+  font-size: var(--pd-text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pd-text-dim);
+  margin: var(--pd-space-6) 0 var(--pd-space-3);
+}
+
+.approvals-section-title:first-of-type {
+  margin-top: 0;
+}
+
+.approval-card {
+  margin-bottom: var(--pd-space-3);
+}
+
+.approval-card-pending {
+  border-left: 3px solid var(--pd-warning);
+}
+
+.approval-card-empty {
+  color: var(--pd-text-muted);
+}
+
+.approval-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pd-space-3);
+  margin-bottom: var(--pd-space-2);
+}
+
+.approval-card-id {
+  font-family: var(--pd-font-mono);
+  font-size: var(--pd-text-xs);
+  color: var(--pd-text-dim);
+}
+
+.approval-card-path {
+  font-size: var(--pd-text-base);
+  font-weight: 500;
+  color: var(--pd-text);
+  margin: 0 0 var(--pd-space-1);
+  word-break: break-all;
+}
+
+.approval-card-meta {
+  font-size: var(--pd-text-xs);
+  color: var(--pd-text-muted);
+  margin: 0 0 var(--pd-space-1);
+  font-family: var(--pd-font-mono);
+}
+
+.approval-card-code {
+  font-size: var(--pd-text-sm);
+  color: var(--pd-text);
+  margin: var(--pd-space-3) 0;
+}
+
+.approval-card-code code {
+  background: var(--pd-bg-input);
+  padding: var(--pd-space-1) var(--pd-space-2);
+  border-radius: var(--pd-radius-sm);
+  font-family: var(--pd-font-mono);
+}
+
+.approval-card-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--pd-space-3);
+  margin-bottom: var(--pd-space-3);
+  border-radius: var(--pd-radius);
+  background: var(--pd-bg-input);
+  border: 1px solid var(--pd-border-strong);
+  color: var(--pd-text);
+  font-family: var(--pd-font-mono);
+  font-size: var(--pd-text-sm);
+  outline: none;
+}
+
+.approval-card-input:focus {
+  border-color: var(--pd-accent);
+}
+
+.approval-card-actions {
+  display: flex;
+  gap: var(--pd-space-2);
+}
+
+.approval-card-badge {
+  font-size: var(--pd-text-xs);
+  font-weight: 600;
+  padding: var(--pd-space-1) var(--pd-space-2);
+  border-radius: var(--pd-radius-sm);
+}
+
+.approval-card-badge-pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--pd-warning);
+}
+
+.approval-card-badge-success {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--pd-success);
+}
+
+.approval-card-badge-neutral {
+  background: var(--pd-bg-input);
+  color: var(--pd-text-muted);
+}

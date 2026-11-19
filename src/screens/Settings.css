@@ -1,0 +1,62 @@
+.settings {
+  max-width: 900px;
+}
+
+.settings-title {
+  display: flex;
+  align-items: center;
+  gap: var(--pd-space-2);
+  font-size: var(--pd-text-lg);
+  font-weight: 600;
+  margin: 0 0 var(--pd-space-5);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--pd-space-4);
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pd-space-4);
+}
+
+.settings-card h3 {
+  font-size: var(--pd-text-base);
+  font-weight: 600;
+  color: var(--pd-text);
+  margin: 0;
+}
+
+.settings-card p {
+  font-size: var(--pd-text-sm);
+  color: var(--pd-text-muted);
+  margin: 0;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pd-space-3);
+  padding: var(--pd-space-2) 0;
+  border-top: 1px solid var(--pd-border);
+  font-size: var(--pd-text-sm);
+}
+
+.settings-row:first-of-type {
+  border-top: none;
+}
+
+.settings-value {
+  color: var(--pd-text-muted);
+  font-family: var(--pd-font-mono);
+  font-size: var(--pd-text-xs);
+  text-align: right;
+}
+
+.settings-value-pending {
+  color: var(--pd-text-dim);
+}

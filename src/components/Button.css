@@ -1,0 +1,67 @@
+.pd-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pd-space-2);
+  border-radius: var(--pd-radius);
+  font-weight: 500;
+  transition: background var(--pd-transition-fast), color var(--pd-transition-fast),
+    border-color var(--pd-transition-fast), box-shadow var(--pd-transition-fast);
+  white-space: nowrap;
+}
+
+.pd-button:disabled {
+  opacity: 0.45;
+}
+
+.pd-button-sm {
+  height: 28px;
+  padding: 0 var(--pd-space-3);
+  font-size: var(--pd-text-xs);
+}
+
+.pd-button-md {
+  height: 36px;
+  padding: 0 var(--pd-space-4);
+  font-size: var(--pd-text-sm);
+}
+
+.pd-button-primary {
+  background: var(--pd-accent);
+  color: #fff;
+}
+
+.pd-button-primary:hover:not(:disabled) {
+  background: var(--pd-accent-hover);
+}
+
+.pd-button-secondary {
+  background: var(--pd-bg-panel);
+  color: var(--pd-text);
+  border: 1px solid var(--pd-border-strong);
+}
+
+.pd-button-secondary:hover:not(:disabled) {
+  background: var(--pd-bg-input);
+  border-color: var(--pd-border-strong);
+}
+
+.pd-button-ghost {
+  background: transparent;
+  color: var(--pd-text-muted);
+}
+
+.pd-button-ghost:hover:not(:disabled) {
+  background: var(--pd-bg-panel);
+  color: var(--pd-text);
+}
+
+.pd-button-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--pd-danger);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.pd-button-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.18);
+}

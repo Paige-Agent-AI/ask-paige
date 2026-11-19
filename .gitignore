@@ -39,3 +39,6 @@ credentials*
 # Rust build output (alternate target dir used for test-mode builds)
 target-test/
 
+# Impeccable review screenshots (kept locally, not in git)
+.impeccable/review/*.png
+

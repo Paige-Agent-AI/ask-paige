@@ -1,0 +1,108 @@
+.ask-paige {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+  padding: var(--pd-space-8) var(--pd-space-5);
+}
+
+.ask-paige-hero {
+  margin-bottom: var(--pd-space-8);
+}
+
+.ask-paige-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--pd-radius-lg);
+  background: var(--pd-accent-dim);
+  color: var(--pd-accent);
+  margin-bottom: var(--pd-space-5);
+}
+
+.ask-paige-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.ask-paige-title {
+  font-size: var(--pd-text-2xl);
+  font-weight: 600;
+  margin: 0 0 var(--pd-space-2);
+}
+
+.ask-paige-lead {
+  font-size: var(--pd-text-lg);
+  color: var(--pd-text-muted);
+  margin: 0;
+}
+
+.ask-paige-examples {
+  width: 100%;
+  margin-bottom: var(--pd-space-6);
+  text-align: left;
+}
+
+.ask-paige-section-label {
+  font-size: var(--pd-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pd-text-dim);
+  margin: 0 0 var(--pd-space-3);
+}
+
+.ask-paige-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pd-space-2);
+}
+
+.ask-paige-chip {
+  padding: var(--pd-space-2) var(--pd-space-3);
+  border-radius: var(--pd-radius);
+  background: var(--pd-bg-input);
+  border: 1px solid var(--pd-border);
+  color: var(--pd-text-muted);
+  font-size: var(--pd-text-sm);
+  transition: background var(--pd-transition-fast), color var(--pd-transition-fast);
+}
+
+.ask-paige-chip:hover {
+  background: var(--pd-bg-elevated);
+  color: var(--pd-text);
+}
+
+.ask-paige-input-bar {
+  display: flex;
+  gap: var(--pd-space-3);
+  width: 100%;
+}
+
+.ask-paige-input {
+  flex: 1;
+  height: 44px;
+  padding: 0 var(--pd-space-4);
+  border-radius: var(--pd-radius);
+  background: var(--pd-bg-input);
+  border: 1px solid var(--pd-border-strong);
+  color: var(--pd-text);
+  outline: none;
+}
+
+.ask-paige-input:focus {
+  border-color: var(--pd-accent);
+  box-shadow: 0 0 0 2px var(--pd-accent-dim);
+}
+
+.ask-paige-hint {
+  font-size: var(--pd-text-xs);
+  color: var(--pd-text-dim);
+  margin-top: var(--pd-space-4);
+}

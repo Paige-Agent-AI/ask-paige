@@ -1,0 +1,50 @@
+:root {
+  /* Palette */
+  --pd-bg: #0d0d0f;
+  --pd-bg-elevated: #131316;
+  --pd-bg-panel: #18181c;
+  --pd-bg-input: #1e1e23;
+  --pd-border: rgba(255, 255, 255, 0.08);
+  --pd-border-strong: rgba(255, 255, 255, 0.14);
+  --pd-text: #f0f0f5;
+  --pd-text-muted: #9ca3af;
+  --pd-text-dim: #6b7280;
+  --pd-accent: #7c5cff;
+  --pd-accent-hover: #9379ff;
+  --pd-accent-dim: rgba(124, 92, 255, 0.14);
+  --pd-danger: #ef4444;
+  --pd-success: #22c55e;
+  --pd-warning: #f59e0b;
+
+  /* Typography */
+  --pd-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --pd-font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+  --pd-text-xs: 0.7rem;
+  --pd-text-sm: 0.8rem;
+  --pd-text-base: 0.9rem;
+  --pd-text-lg: 1.05rem;
+  --pd-text-xl: 1.25rem;
+  --pd-text-2xl: 1.6rem;
+
+  /* Spacing */
+  --pd-space-1: 0.25rem;
+  --pd-space-2: 0.5rem;
+  --pd-space-3: 0.75rem;
+  --pd-space-4: 1rem;
+  --pd-space-5: 1.25rem;
+  --pd-space-6: 1.5rem;
+  --pd-space-8: 2rem;
+  --pd-space-10: 2.5rem;
+
+  /* Layout */
+  --pd-rail-width: 64px;
+  --pd-rail-expanded: 180px;
+  --pd-header-height: 48px;
+  --pd-radius-sm: 6px;
+  --pd-radius: 8px;
+  --pd-radius-lg: 12px;
+
+  /* Motion */
+  --pd-transition-fast: 120ms ease;
+  --pd-transition: 180ms ease;
+}

@@ -1,0 +1,6 @@
+.pd-card {
+  background: var(--pd-bg-panel);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-lg);
+  padding: var(--pd-space-5);
+}

@@ -1,0 +1,27 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  height: var(--pd-header-height);
+  padding: 0 var(--pd-space-5);
+  background: var(--pd-bg);
+  border-bottom: 1px solid var(--pd-border);
+  flex-shrink: 0;
+}
+
+.app-header-titles {
+  display: flex;
+  align-items: baseline;
+  gap: var(--pd-space-3);
+}
+
+.app-header-title {
+  font-size: var(--pd-text-lg);
+  font-weight: 600;
+  margin: 0;
+  color: var(--pd-text);
+}
+
+.app-header-subtitle {
+  font-size: var(--pd-text-sm);
+  color: var(--pd-text-muted);
+}
