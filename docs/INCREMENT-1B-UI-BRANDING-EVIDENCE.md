@@ -93,14 +93,20 @@ Command Mark in the title bar and interface.
 
 ---
 
-## G. Independent review
+## G. Owner acceptance
+
+**Accepted on 2026-11-18** as part of Increment 1B-UI.
+
+---
+
+## H. Independent review
 
 Exact-head independent review performed against `f4360a3` by a non-author
 reviewer. Full report: `docs/REVIEW-1B-UI-BRANDING.md`.
 
 ---
 
-## H. Remaining limitations
+## I. Remaining limitations
 
 This was a bounded branding/launcher correction. The underlying functional
 limitations from Increment 1B-UI remain unchanged:
@@ -116,5 +122,8 @@ limitations from Increment 1B-UI remain unchanged:
 
 ## Status
 
-The Command Mark branding correction is complete and verified. Awaiting owner
-acceptance before proceeding.
+**Owner accepted on 2026-11-18.** The Command Mark branding correction is
+complete, verified and accepted. No new implementation outcome is activated
+until the owner explicitly designates the next milestone. See
+`docs/ROADMAP.md` for queued outcomes including the MCP client increment
+(ANT-170).

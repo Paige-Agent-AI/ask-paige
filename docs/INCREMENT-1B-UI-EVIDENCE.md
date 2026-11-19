@@ -150,7 +150,10 @@ Full report: `docs/REVIEW-INCREMENT-1B-UI.md`.
 
 ## Status
 
-Increment 1B-UI implementation, tests, screenshots and exact-head independent
-review are complete. The official Command Mark branding/launcher correction is
-also complete and verified. Awaiting owner acceptance before beginning
-Increment 1C or any other outcome.
+**Owner accepted on 2026-11-18.** Increment 1B-UI implementation, tests,
+screenshots, exact-head independent review and the official Command Mark
+branding/launcher correction are complete and accepted. No new implementation
+outcome is activated until the owner explicitly designates the next milestone.
+
+See `docs/ROADMAP.md` for the proposed next outcomes, including the MCP client
+increment (ANT-170).
