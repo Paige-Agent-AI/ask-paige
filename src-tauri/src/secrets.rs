@@ -224,6 +224,11 @@ pub fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+/// Shared lock for tests that mutate the process-global PAIGE_TEST_CONFIG_DIR;
+/// cargo runs lib tests in parallel and env is process-global, so without a
+/// lock two such tests can race (one test's save/load reads the other's dir).
+pub static TEST_CONFIG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,6 +254,7 @@ mod tests {
 
     #[test]
     fn config_key_store_round_trip() {
+        let _guard = crate::secrets::TEST_CONFIG_LOCK.lock().unwrap();
         // Isolate the config location so this test never touches the owner's
         // real gateway configuration.
         unsafe {

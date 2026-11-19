@@ -1429,6 +1429,9 @@ mod tests {
 
     #[test]
     fn mcp_config_round_trip() {
+        // Shared with secrets::config_key_store_round_trip: the env var is
+        // process-global and cargo runs lib tests in parallel.
+        let _guard = crate::secrets::TEST_CONFIG_LOCK.lock().unwrap();
         unsafe {
             std::env::set_var(
                 "PAIGE_TEST_CONFIG_DIR",
