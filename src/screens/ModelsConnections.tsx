@@ -125,8 +125,9 @@ export function ModelsConnections() {
                 </Button>
               </div>
               <p className="connection-card-note">
-                Connect with the owner's OpenRouter key. The connection is verified
-                live against the OpenRouter catalog before it is stored.
+                Connect with the owner's OpenRouter key. The key is verified live
+                against OpenRouter's authenticated credits endpoint before it is
+                stored (the public model catalog cannot validate a key).
               </p>
             </>
           )}

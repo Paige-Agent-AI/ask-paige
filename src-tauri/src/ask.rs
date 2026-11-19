@@ -465,12 +465,19 @@ fn stream_chat(
     })
 }
 
+/// Char-boundary-safe truncation. Never panics on multi-byte UTF-8
+/// (model output and gateway bodies may contain any UTF-8), which matters
+/// extra because the release profile uses panic="abort".
 fn truncate(s: &str, n: usize) -> String {
     if s.len() <= n {
-        s.to_string()
-    } else {
-        format!("{}…", &s[..n])
+        return s.to_string();
     }
+    // Walk back to the nearest char boundary at or below n.
+    let mut end = n;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…", &s[..end])
 }
 
 // ---------------------------------------------------------------------------
@@ -711,7 +718,9 @@ pub struct AskSendRequest {
 }
 
 fn default_mode() -> String {
-    "build".to_string()
+    // Safer fallback for a hand-crafted IPC request that omits `mode`:
+    // PLAN (no writes, read-only commands) rather than BUILD.
+    "plan".to_string()
 }
 
 #[tauri::command]
@@ -1100,5 +1109,49 @@ pub fn ask_cancel(state: State<'_, Mutex<AskState>>, turn_id: String) -> Result<
         Ok(())
     } else {
         Ok(()) // unknown/finished turn: no-op
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_is_char_boundary_safe() {
+        // ASCII: cuts exactly at n.
+        assert_eq!(truncate("abcdef", 3), "abc…");
+        // Short strings pass through untouched.
+        assert_eq!(truncate("ab", 10), "ab");
+        assert_eq!(truncate("", 5), "");
+        // Multi-byte UTF-8 never panics and never splits a char.
+        let emoji = "a😀b😀c"; // len = 1 + 4 + 1 + 4 + 1 = 11 bytes
+        for n in 0..=emoji.len() + 2 {
+            let out = truncate(emoji, n);
+            assert!(out.ends_with('…') || out == emoji, "n={n} out={out:?}");
+        }
+        // Cutting inside the first emoji (bytes 2..5) must land on a boundary.
+        assert_eq!(truncate(emoji, 5), "a😀…");
+        // CJK text truncates on char boundaries (each char is 3 bytes).
+        let cjk = "你好世界";
+        assert_eq!(truncate(cjk, 3), "你…");
+        assert_eq!(truncate(cjk, 6), "你好…");
+        // 7 is not a boundary; walks back to 6.
+        assert_eq!(truncate(cjk, 7), "你好…");
+    }
+
+    #[test]
+    fn default_mode_is_plan() {
+        // Hand-crafted IPC without an explicit mode must fall back to the
+        // safer PLAN policy, not BUILD.
+        assert_eq!(default_mode(), "plan");
+    }
+
+    #[test]
+    fn ask_send_request_defaults_are_safe() {
+        let req: AskSendRequest = serde_json::from_str(r#"{"message":"hi"}"#).unwrap();
+        assert_eq!(req.mode, "plan");
+        assert!(req.attachments.is_empty());
+        assert!(req.context_refs.is_empty());
+        assert!(req.model_choice.is_none());
     }
 }

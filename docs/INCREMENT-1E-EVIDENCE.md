@@ -126,17 +126,25 @@ paid provider. The runtime suite (23 checks) proves:
 
 ---
 
-## F. Regression totals — 152/152
+## F. Regression totals — 155/155
 
 | Suite | Result |
 |---|---|
-| Rust unit tests (`cargo test --lib`) | **36/36 pass** (14 new: 11 policy + 3 secrets/DPAPI) |
+| Rust unit tests (`cargo test --lib`) | **39/39 pass** (17 new: 11 policy + 3 DPAPI/secrets + 3 ask correction tests) |
 | Static security (`npm run test:security`) | **41/41 pass** |
 | CSP runtime (`npm run test:security:runtime`) | **10/10 pass** |
 | Broker runtime (`npm run test:broker:runtime`) | **26/26 pass** |
 | Terminal runtime (`npm run test:terminal:runtime`) | **16/16 pass** |
 | Ask runtime (`npm run test:ask:runtime`) | **23/23 pass** |
-| **Total** | **152/152** |
+| **Total** | **155/155** |
+
+> **Post-review correction (2026-11-19):** the independent review's material
+> finding #1 was fixed — `truncate()` is now char-boundary-safe (byte-slicing a
+> multibyte char with `panic="abort"` could previously abort the whole app);
+> the omitted-`mode` IPC default was changed to the safer PLAN policy
+> (finding #4); the ModelsConnections wording now names the credits endpoint
+> (finding #5). Three new unit tests cover the fixes. Totals moved
+> 152 → 155.
 
 ---
 
@@ -146,8 +154,8 @@ paid provider. The runtime suite (23 checks) proves:
 |---|---|
 | Path | `src-tauri/target/release/paige-desktop.exe` |
 | Build | `npm run tauri build` (full bundle: MSI + NSIS) |
-| Size | **5,939,200 bytes** |
-| SHA-256 | `BF12F21CBA5EA3C6A4F1AB38456DF0B71B4293604F3436A38DD98B05CBD9B5A5` |
+| Size | **5,941,248 bytes** |
+| SHA-256 | `0D2CC999D32103113B187E66A533597256160C4A6B0E8F126ADF442EC6442A3C` |
 | `PAIGE_BROKER_TEST_MODE` string | Absent |
 | Test-harness gateway probe | Compiled out of release builds (cfg-gated to `insecure-test-bypass`) |
 
@@ -204,8 +212,17 @@ paid provider. The runtime suite (23 checks) proves:
 
 ## K. Independent review
 
-Exact-head independent review performed against `8ba9a60` by a non-author
-reviewer. Full report: `docs/REVIEW-INCREMENT-1E.md`.
+Exact-head independent review performed against `8ba9a609375abb797e38145eb0f832879ac398a8` by a non-author reviewer — verdict **ACCEPT WITH FINDINGS**. Full report: `docs/REVIEW-INCREMENT-1E.md`.
+
+Material findings were corrected in the post-review pass:
+1. `truncate()` char-boundary safety (fixed + 3 new tests).
+2. Omitted-`mode` IPC default changed to PLAN.
+3. ModelsConnections wording names the credits endpoint.
+
+Remaining non-blocking findings are documented in the review and the evidence
+(context-fit warning vs failover semantics; `needs_tools` always true from the
+app path; cross-turn conversation history future work; weak runtime check 7b;
+`set_var` test isolation fragility).
 
 ---
 
