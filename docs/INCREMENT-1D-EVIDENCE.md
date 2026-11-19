@@ -241,6 +241,17 @@ Findings and how they were addressed:
 - **F5 (server stderr relay via `mcp-message`):** documented minor observation.
 - **F6 (evidence table noted first-run flake; fixed as above):** now resolved.
 
+## K. Production binary identity (post-repair)
+
+- Path (installed): `%LOCALAPPDATA%\\PAIGE Desktop\\paige-desktop.exe`
+- Path (release build): `src-tauri/target/release/paige-desktop.exe`
+- Size: **6,130,176 bytes**
+- SHA-256 (installed): `D78933B94F0F03337A9C395697C64CB56429CB0E1AE459B03F60BFF32292273E`
+- SHA-256 (release build): `76A7BD2E5E42B8479560FDACC89507FF3D7D42952098BC1011C5D2AC3E35D552`
+- Test strings absent: verified by byte scan (0 occurrences of `PAIGE_MCP_TEST_INSECURE_REMOTE`, `PAIGE_BROKER_TEST_MODE`, `PAIGE_TEST_GATEWAY`, `TEST-ONLY`, `TestRemoteVerifier`).
+- Desktop shortcut: `C:\\Users\\tonig\\OneDrive\\Desktop\\PAIGE Desktop.lnk` → installed exe.
+- Start Menu shortcut: `C:\\Users\\tonig\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\PAIGE Desktop.lnk` → installed exe.
+
 ## J. Status
 
 - Implementation: complete (backend, commands, UI, tests, fixtures).
