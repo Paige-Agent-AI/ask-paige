@@ -189,6 +189,26 @@ production binary cannot connect to self-signed servers. This is intentional
 | MCP runtime (`npm run test:mcp:runtime`) | **19/19 pass** |
 | **Total** | **192** (45+41+26+16+24+19) |
 
+## H. Production cold launch repair (owner-reported ERR_CONNECTION_REFUSED)
+
+**Root cause:** the production release binary was built via `cargo build --release`
+without the `custom-protocol` feature, so Tauri loaded the Vite dev URL
+(`http://localhost:1420`) instead of the embedded production app; with no Vite
+server running the WebView showed Edge `ERR_CONNECTION_REFUSED`.
+
+**Fix:** enable `custom-protocol` on the `tauri` dependency in `Cargo.toml`
+(`tauri = { version = "2", features = ["custom-protocol"] }`) so the production
+build loads the embedded app at `tauri://localhost`. Rebuilt the production
+binary: **6,130,176 bytes, SHA-256 `76A7BD2E5E42B8479560FDACC89507FF3D7D42952098BC1011C5D2AC3E35D552`**.
+
+**Verification (cold launches, no Vite dev server running):**
+- Cold launch 1: page `http://tauri.localhost/`, `ask_status` ok, Ask PAIGE composer present; screenshot `1d-cold-launch-1.png`.
+- Cold launch 2: navigated to Models & Connections; `MCP Servers` card present; `mcp_status` ok; screenshot `1d-cold-launch-2.png`.
+
+Screenshots: `C:\Users\tonig\paige-desktop\.impeccable\review\1d-cold-launch-1.png`, `1d-cold-launch-2.png`.
+
+**Independent non-author review of the material code correction (custom-protocol feature enablement):** verified the production binary now loads `tauri://localhost` (embedded app) instead of `localhost:1420`; no dev-server dependency; no test bypass strings in the production binary (byte scan: 0 occurrences of `PAIGE_MCP_TEST_INSECURE_REMOTE`, `PAIGE_BROKER_TEST_MODE`, `PAIGE_TEST_GATEWAY`, `TEST-ONLY`, `TestRemoteVerifier`).
+
 ## I. Independent non-author review (PASS WITH MINOR FINDINGS)
 
 An independent non-author reviewer audited the 1D diff at HEAD `f57b5f1`
@@ -221,11 +241,12 @@ Findings and how they were addressed:
 - **F5 (server stderr relay via `mcp-message`):** documented minor observation.
 - **F6 (evidence table noted first-run flake; fixed as above):** now resolved.
 
-## H. Status
+## J. Status
 
 - Implementation: complete (backend, commands, UI, tests, fixtures).
 - Runtime: MCP runtime suite passing — 1 local stdio + 1 authenticated remote HTTPS connection.
-- Independent review: non-author review — pending; see review doc.
+- Independent review: non-author review — PASS WITH MINOR FINDINGS (F1/F2 addressed; F3–F6 documented minor).
+- Production cold launch repair: complete (2 successful cold launches, screenshots captured).
 - Docs: ANT-168, ANT-170, ROADMAP updated; this evidence file is the 1D evidence.
 
-**Next step (owner-gated):** independent non-author review; STOP before 1F.
+**Next step (owner-gated):** owner acceptance; STOP before 1F.
