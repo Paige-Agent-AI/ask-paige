@@ -196,7 +196,7 @@ const PRIVILEGED_NAMES: &[&str] = &[
     "bash", "sh", "zsh", "wsl", "curl", "wget", "certutil",
 ];
 
-fn classify_command(name: &str, args: &[String]) -> TerminalRisk {
+pub fn classify_command(name: &str, args: &[String]) -> TerminalRisk {
     let lower = name.to_lowercase();
 
     // Explicitly privileged system tooling is never auto-approved.
@@ -597,6 +597,118 @@ fn kill_process_tree(pid: u32) -> Result<(), String> {
     } else {
         Err(format!("taskkill exited with {status}"))
     }
+}
+
+// ---------------------------------------------------------------------------
+// Programmatic synchronous execution (shared engine, used by the Ask PAIGE
+// tool loop in Increment 1E). Same allowlist, classification, cwd validation
+// and fail-closed root handling as the interactive terminal.
+// ---------------------------------------------------------------------------
+
+const SYNC_MAX_OUTPUT_BYTES: usize = 256 * 1024;
+const SYNC_TIMEOUT_SECS: u64 = 180;
+
+#[derive(Clone, Serialize)]
+pub struct SyncRunResult {
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+    pub timed_out: bool,
+    pub killed: bool,
+    pub command_line: String,
+    pub cwd: String,
+}
+
+/// Run an allowlisted command to completion and capture its output.
+/// Read/StandardWrite commands run directly. Privileged commands are REJECTED
+/// here (they require the interactive owner-approval flow) unless
+/// `approved` is true, set only after the owner approved via the native dialog.
+pub fn run_to_completion(
+    state: &Mutex<TerminalState>,
+    command: &str,
+    args: &[String],
+    cwd: Option<&str>,
+    approved: bool,
+) -> Result<SyncRunResult, String> {
+    let command = command.trim().to_string();
+    let risk = classify_command(&command, args);
+    if risk == TerminalRisk::Privileged && !approved {
+        return Err("privileged/destructive command requires explicit owner approval".to_string());
+    }
+    let resolved_exe = resolve_executable(&command)?;
+    let command_line = format_command_line(&command, args);
+    let workdir = resolve_cwd(state, cwd)?;
+
+    let mut cmd = Command::new(&resolved_exe);
+    cmd.args(args)
+        .current_dir(&workdir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null());
+
+    let mut child = cmd.spawn().map_err(|e| format!("failed to spawn process: {e}"))?;
+    let pid = child.id();
+    let mut stdout_pipe = child.stdout.take().ok_or("failed to capture stdout")?;
+    let mut stderr_pipe = child.stderr.take().ok_or("failed to capture stderr")?;
+
+    let (tx_out, rx_out) = mpsc::channel::<Vec<u8>>();
+    let (tx_err, rx_err) = mpsc::channel::<Vec<u8>>();
+    thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = std::io::Read::read_to_end(&mut stdout_pipe, &mut buf);
+        let _ = tx_out.send(buf);
+    });
+    thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = std::io::Read::read_to_end(&mut stderr_pipe, &mut buf);
+        let _ = tx_err.send(buf);
+    });
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(SYNC_TIMEOUT_SECS);
+    let mut timed_out = false;
+    let mut killed = false;
+    let exit_code;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                exit_code = status.code().unwrap_or(-1);
+                break;
+            }
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    timed_out = true;
+                    killed = true;
+                    let _ = kill_process_tree(pid);
+                    exit_code = child.wait().map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+                    break;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => return Err(format!("failed to wait for process: {e}")),
+        }
+    }
+
+    let stdout_bytes = rx_out.recv_timeout(Duration::from_secs(5)).unwrap_or_default();
+    let stderr_bytes = rx_err.recv_timeout(Duration::from_secs(5)).unwrap_or_default();
+    let cap = |b: Vec<u8>| -> String {
+        let cut = &b[..b.len().min(SYNC_MAX_OUTPUT_BYTES)];
+        let s = String::from_utf8_lossy(cut).to_string();
+        if b.len() > SYNC_MAX_OUTPUT_BYTES {
+            format!("{s}\n... [output truncated at {} bytes]", SYNC_MAX_OUTPUT_BYTES)
+        } else {
+            s
+        }
+    };
+
+    Ok(SyncRunResult {
+        exit_code,
+        stdout: cap(stdout_bytes),
+        stderr: cap(stderr_bytes),
+        timed_out,
+        killed,
+        command_line,
+        cwd: display_path(&workdir),
+    })
 }
 
 // ---------------------------------------------------------------------------

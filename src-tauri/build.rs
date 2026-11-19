@@ -22,6 +22,14 @@ fn main() {
         "terminal_list",
         "terminal_receipts",
         "terminal_output",
+        "ask_status",
+        "ask_probe",
+        "ask_connect_openrouter",
+        "ask_disconnect_openrouter",
+        "ask_set_model_selection",
+        "ask_send",
+        "ask_cancel",
+        "ask_receipts",
     ]);
     let attributes = tauri_build::Attributes::new().app_manifest(app_manifest);
     tauri_build::try_build(attributes).expect("failed to run tauri-build");

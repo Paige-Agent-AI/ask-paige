@@ -81,6 +81,14 @@ const allowed = new Set([
   "allow-terminal-list",
   "allow-terminal-receipts",
   "allow-terminal-output",
+  "allow-ask-status",
+  "allow-ask-probe",
+  "allow-ask-connect-openrouter",
+  "allow-ask-disconnect-openrouter",
+  "allow-ask-set-model-selection",
+  "allow-ask-send",
+  "allow-ask-cancel",
+  "allow-ask-receipts",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];

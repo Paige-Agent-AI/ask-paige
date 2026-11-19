@@ -27,6 +27,14 @@
     "allow-terminal-kill",
     "allow-terminal-list",
     "allow-terminal-receipts",
-    "allow-terminal-output"
+    "allow-terminal-output",
+    "allow-ask-status",
+    "allow-ask-probe",
+    "allow-ask-connect-openrouter",
+    "allow-ask-disconnect-openrouter",
+    "allow-ask-set-model-selection",
+    "allow-ask-send",
+    "allow-ask-cancel",
+    "allow-ask-receipts"
   ]
 }

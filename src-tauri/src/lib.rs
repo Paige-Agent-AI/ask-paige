@@ -1,7 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod ask;
 mod broker;
+mod gateway;
+mod secrets;
 mod terminal;
 
+use ask::AskState;
 use broker::BrokerState;
 use terminal::TerminalState;
 use std::sync::Mutex;
@@ -16,6 +20,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(BrokerState::new()))
         .manage(Mutex::new(TerminalState::new()))
+        .manage(Mutex::new(AskState::new()))
         .invoke_handler(tauri::generate_handler![
             greet,
             broker::broker_status,
@@ -39,6 +44,14 @@ pub fn run() {
             terminal::terminal_list,
             terminal::terminal_receipts,
             terminal::terminal_output,
+            ask::ask_status,
+            ask::ask_probe,
+            ask::ask_connect_openrouter,
+            ask::ask_disconnect_openrouter,
+            ask::ask_set_model_selection,
+            ask::ask_send,
+            ask::ask_cancel,
+            ask::ask_receipts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

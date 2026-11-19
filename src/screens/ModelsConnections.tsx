@@ -1,9 +1,26 @@
+import { useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { CpuIcon, LockIcon } from "../components/Icons";
+import { useAsk } from "../hooks/useAsk";
 import "./ModelsConnections.css";
 
 export function ModelsConnections() {
+  const ask = useAsk();
+  const [keyInput, setKeyInput] = useState("");
+  const [connecting, setConnecting] = useState(false);
+
+  const omniroute = ask.status?.gateways.find((g) => g.gateway === "omniroute");
+  const openrouter = ask.status?.gateways.find((g) => g.gateway === "openrouter-direct");
+
+  const connect = async () => {
+    if (!keyInput.trim()) return;
+    setConnecting(true);
+    const ok = await ask.connectOpenrouter(keyInput.trim());
+    if (ok) setKeyInput("");
+    setConnecting(false);
+  };
+
   return (
     <div className="models-connections">
       <div className="models-connections-hero">
@@ -11,7 +28,7 @@ export function ModelsConnections() {
         <h2>Models & Connections</h2>
         <p>
           Truthful gateway, model and connection status for PAIGE Desktop's
-          coding inference routes.
+          engineering inference routes.
         </p>
       </div>
 
@@ -19,90 +36,143 @@ export function ModelsConnections() {
         <Card className="connection-card">
           <div className="connection-card-header">
             <h3>OmniRoute</h3>
-            <span className="connection-status connection-status-pending">
-              Not verified
+            <span
+              className={
+                omniroute?.reachable
+                  ? omniroute?.authenticated
+                    ? "connection-status connection-status-ready"
+                    : "connection-status connection-status-pending"
+                  : "connection-status connection-status-off"
+              }
+            >
+              {omniroute?.reachable
+                ? omniroute?.authenticated
+                  ? "Ready"
+                  : "Auth needed"
+                : "Offline"}
             </span>
           </div>
           <p className="connection-card-desc">
-            Owner-maintained private locally hosted router. Preferred engineering
-            gateway for OpenCode and compatible coding clients.
+            Owner-maintained local engineering gateway (preferred route) at
+            127.0.0.1:20128. Streams Claude/OpenAI-compatible traffic to the
+            owner's qualified upstream models.
           </p>
           <div className="connection-card-detail">
             <span>Endpoint</span>
-            <span className="connection-card-value">Not configured</span>
+            <span className="connection-card-value">http://127.0.0.1:20128/v1</span>
           </div>
           <div className="connection-card-detail">
-            <span>Qualified models</span>
-            <span className="connection-card-value">Pending discovery</span>
+            <span>Status</span>
+            <span className="connection-card-value">{omniroute?.detail ?? "probing…"}</span>
           </div>
-          <Button variant="secondary" size="sm" disabled>
-            Verify connection
-          </Button>
+          <div className="connection-card-detail">
+            <span>Catalog</span>
+            <span className="connection-card-value">
+              {omniroute ? `${omniroute.catalog_count} live` : "—"}
+            </span>
+          </div>
+          {omniroute && !omniroute.authenticated && (
+            <p className="connection-card-note">
+              The OmniRoute server is installed and startable. Its stored upstream
+              credential could not be decrypted (STORAGE_ENCRYPTION_KEY missing
+              from the OmniRoute environment), so inference returns a truthful
+              upstream 401. Restore the owner's STORAGE_ENCRYPTION_KEY in the
+              OmniRoute .env to reactivate this gateway.
+            </p>
+          )}
         </Card>
 
         <Card className="connection-card">
           <div className="connection-card-header">
             <h3>OpenRouter</h3>
-            <span className="connection-status connection-status-pending">
-              Not verified
+            <span
+              className={
+                ask.status?.openrouter_connected
+                  ? "connection-status connection-status-ready"
+                  : "connection-status connection-status-pending"
+              }
+            >
+              {ask.status?.openrouter_connected ? "Connected" : "Not connected"}
             </span>
           </div>
           <p className="connection-card-desc">
-            Direct OpenRouter connection as alternate gateway. Owner-maintained
-            credits and spending limits.
+            Direct OpenRouter connection as the alternate gateway. Owner-maintained
+            credits and spending limits. The key is stored encrypted at rest
+            (Windows DPAPI) outside the repository and never exposed to the page.
           </p>
-          <div className="connection-card-detail">
-            <span>Key status</span>
-            <span className="connection-card-value">Not configured</span>
-          </div>
-          <div className="connection-card-detail">
-            <span>Spend cap</span>
-            <span className="connection-card-value">Owner-managed</span>
-          </div>
-          <Button variant="secondary" size="sm" disabled>
-            Verify connection
-          </Button>
+          {ask.status?.openrouter_connected ? (
+            <>
+              <div className="connection-card-detail">
+                <span>Catalog</span>
+                <span className="connection-card-value">{openrouter?.catalog_count ?? "—"} live models</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={ask.disconnectOpenrouter}>
+                Disconnect
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="connection-keyrow">
+                <input
+                  type="password"
+                  className="connection-keyinput"
+                  placeholder="sk-or-v1-…"
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                />
+                <Button variant="primary" size="sm" onClick={connect} disabled={connecting || !keyInput.trim()}>
+                  {connecting ? "Verifying…" : "Connect"}
+                </Button>
+              </div>
+              <p className="connection-card-note">
+                Connect with the owner's OpenRouter key. The connection is verified
+                live against the OpenRouter catalog before it is stored.
+              </p>
+            </>
+          )}
         </Card>
 
         <Card className="connection-card">
           <div className="connection-card-header">
-            <h3>OpenCode</h3>
-            <span className="connection-status connection-status-ready">
-              Active client
+            <h3>Qualified models</h3>
+            <span className="connection-status connection-status-pending">
+              {(ask.status?.catalog ?? []).length} candidates
             </span>
           </div>
-          <p className="connection-card-desc">
-            Current Desktop engineering client. Routing to OmniRoute or
-            OpenRouter requires separate configuration and testing.
-          </p>
-          <div className="connection-card-detail">
-            <span>Route</span>
-            <span className="connection-card-value">Default provider</span>
-          </div>
-          <div className="connection-card-detail">
-            <span>Compatibility</span>
-            <span className="connection-card-value">To be determined</span>
+          <div className="connection-models">
+            {(ask.status?.catalog ?? []).map((c) => (
+              <div key={c.id} className="connection-model">
+                <code>{c.id}</code>
+                <span className="connection-model-meta">
+                  {c.gateway} · tier {c.coding_tier}/5 · {Math.round(c.context_bytes / 1024)}KB
+                  {c.tools ? " · tools" : ""}
+                </span>
+              </div>
+            ))}
+            {(ask.status?.catalog ?? []).length === 0 && (
+              <p className="connection-card-note">No qualified models yet — connect a gateway.</p>
+            )}
           </div>
         </Card>
 
         <Card className="connection-card">
           <div className="connection-card-header">
-            <h3>Codex</h3>
-            <span className="connection-status connection-status-pending">
-              Not verified
-            </span>
+            <h3>Receipts</h3>
+            <span className="connection-status connection-status-pending">{ask.receipts.length}</span>
           </div>
-          <p className="connection-card-desc">
-            Codex compatibility with custom OmniRoute base URLs and usage caps
-            must be tested separately without disrupting authentication.
-          </p>
-          <div className="connection-card-detail">
-            <span>Custom base URL</span>
-            <span className="connection-card-value">Untested</span>
+          <div className="connection-receipts">
+            {ask.receipts.slice(-8).reverse().map((r, i) => (
+              <div key={i} className="connection-receipt">
+                <code>{r.tool}</code>
+                <span className="connection-receipt-meta">
+                  {r.model} · {r.outcome} · {r.summary.slice(0, 80)}
+                </span>
+              </div>
+            ))}
+            {ask.receipts.length === 0 && (
+              <p className="connection-card-note">No inference receipts yet this session.</p>
+            )}
           </div>
-          <Button variant="secondary" size="sm" disabled>
-            Test compatibility
-          </Button>
         </Card>
       </div>
 
@@ -110,11 +180,12 @@ export function ModelsConnections() {
         <div className="models-connections-locked-icon">
           <LockIcon />
         </div>
-        <h3>Inference gateway integration is not activated</h3>
+        <h3>Gateway scope</h3>
         <p>
-          Model routing, usage attribution, conversation continuity and safe
-          recovery will be implemented in a separate authorized engineering
-          increment. This screen shows the planned connection surface only.
+          PAIGE Desktop's inference layer is a fixed table: OmniRoute (preferred)
+          and direct OpenRouter (alternate), plus an explicitly labeled local
+          harness used only by automated tests. This is not a general provider
+          registry. Native MCP client connections arrive in Increment 1D.
         </p>
       </Card>
     </div>
