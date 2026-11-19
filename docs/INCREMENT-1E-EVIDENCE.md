@@ -166,7 +166,7 @@ Provider usage: one OpenRouter chat-completions stream to `openai/gpt-5.4`
 | Path | `src-tauri/target/release/paige-desktop.exe` |
 | Build | `npm run tauri build` (full bundle: MSI + NSIS) |
 | Size | **5,945,344 bytes** |
-| SHA-256 | `F41994A5A2CD3EABF2DE7C33AB852E6EDFF04C199B39EF9C8EE087F240CF4952` |
+| SHA-256 | `3538E41350E9CC7C0D8A0148160314E1523B00C7BEF18B879EF98A71644D7E23` |
 | `PAIGE_BROKER_TEST_MODE` string | Absent |
 | Test-harness gateway probe | Compiled out of release builds (cfg-gated to `insecure-test-bypass`) |
 
