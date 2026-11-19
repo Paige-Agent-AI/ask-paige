@@ -97,6 +97,11 @@ Captured via WebView2 remote-debugging from the release binary:
 
 All screenshots show the actual compiled workstation UI, not concept art.
 
+> **Update:** the official Command Mark branding correction was applied after
+> the initial 1B-UI review. New screenshots and verification are in
+> `docs/INCREMENT-1B-UI-BRANDING-EVIDENCE.md` and the review receipt is in
+> `docs/REVIEW-1B-UI-BRANDING.md`.
+
 ---
 
 ## G. Independent non-author reviewer findings
@@ -146,5 +151,6 @@ Full report: `docs/REVIEW-INCREMENT-1B-UI.md`.
 ## Status
 
 Increment 1B-UI implementation, tests, screenshots and exact-head independent
-review are complete. Awaiting owner acceptance before beginning Increment 1C
-or any other outcome.
+review are complete. The official Command Mark branding/launcher correction is
+also complete and verified. Awaiting owner acceptance before beginning
+Increment 1C or any other outcome.
