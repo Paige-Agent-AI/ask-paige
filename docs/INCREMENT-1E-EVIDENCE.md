@@ -14,8 +14,16 @@ result + receipts workflow.
 
 ## A. Source and commit identity
 
-- **HEAD:** `8ba9a609375abb797e38145eb0f832879ac398a8`
+- **HEAD:** `89c299271fd5ebaa0ddebb4236231587410be866`
 - **Branch:** `feat/paige-desktop-prototype`
+- **Reviewed code commit:** `da59cb919e2cd0160743e2a09a0d7a587c38df3b` (subsequent
+  `89c2992` is docs-only: final binary hash update)
+- **Commit chain:**
+  - `8ba9a60` — original 1E implementation
+  - `b5c6f44` — post-review corrections (truncate, PLAN default, wording)
+  - `faf1aa6` — workspace OpenRouter connect banner
+  - `da59cb9` — environment-aware ask runtime test + corrected totals
+  - `89c2992` — final evidence with rebuilt binary hash (HEAD)
 
 Key files:
 
@@ -26,7 +34,7 @@ Key files:
 - `src/hooks/useAsk.ts`, `src/screens/AskPaige.tsx` (+ css) — composer + transcript UI.
 - `src/screens/ModelsConnections.tsx` — truthful gateway health + owner key connect flow.
 - `scripts/test-harness-gateway.mjs` — TEST-ONLY OpenAI-compatible local gateway (scripts the model behaviors; never claimed as a provider).
-- `scripts/test-ask-runtime.mjs` — 23-check end-to-end runtime suite.
+- `scripts/test-ask-runtime.mjs` — 24-check end-to-end runtime suite (environment-aware: passes with or without an owner-connected OpenRouter key).
 
 ---
 
@@ -104,7 +112,7 @@ proven end-to-end against the **explicitly-labeled TEST-ONLY harness gateway**
 exercised every real subsystem — real HTTP/SSE streaming, the real selection
 policy, the real broker, the real terminal engine, real node test execution,
 real receipts — with a scripted model, and was never presented as a paid
-provider. The runtime suite (23 checks) proved the machinery.
+provider. The runtime suite proved the machinery.
 
 ### E.2 Live-model acceptance (owner-connected OpenRouter key)
 
@@ -207,10 +215,9 @@ Provider usage: one OpenRouter chat-completions stream to `openai/gpt-5.4`
 
 ## J. Genuine limitations
 
-1. **No live paid model call was demonstrated** because both production
-   gateways currently lack usable upstream credentials (see §D). The owner can
-   activate OmniRoute (restore STORAGE_ENCRYPTION_KEY) or connect an OpenRouter
-   key; no code change is required.
+1. **OmniRoute is not yet active** because the owner's `STORAGE_ENCRYPTION_KEY`
+   is missing/empty on this machine; OpenRouter is connected and working as the
+   alternate. Restoring the OmniRoute key requires no code change.
 2. The qualified model pools for the production gateways are small curated
    lists (proven models + tier data); a live catalog replaces/augments them
    once a gateway authenticates.
@@ -226,15 +233,16 @@ Provider usage: one OpenRouter chat-completions stream to `openai/gpt-5.4`
 
 ## K. Independent review
 
-Exact-head independent review performed against the final commit
-`faf1aa655fac65c24d60fc99b360b1db91a74cc0` by a non-author reviewer —
-verdict **ACCEPT WITH FINDINGS**. Full report: `docs/REVIEW-INCREMENT-1E.md`.
+Exact-head independent review performed against the final code commit
+`da59cb919e2cd0160743e2a09a0d7a587c38df3b` by a non-author reviewer —
+verdict **ACCEPT**. Full report: `docs/REVIEW-INCREMENT-1E.md`.
 
-The reviewer verified the post-correction code (`b5c6f44`) and the workspace
-connect banner addition (`faf1aa6`), confirmed the diff scope was limited to
-frontend UI/UX (no Rust backend changes), verified the banner's security
-(password input, backend-only storage, key cleared from frontend state), and
-confirmed the production binary properties.
+A subsequent delta review confirmed the HEAD commit `89c2992` is docs-only
+(final binary hash update) and that no application source code changed. The
+reviewer verified the post-correction code (`b5c6f44`), the workspace connect
+banner addition (`faf1aa6`), the environment-aware test update (`da59cb9`),
+re-ran every suite, verified the production binary, and confirmed no credential
+harvesting.
 
 Material findings from the earlier `8ba9a60` review were corrected in
 `b5c6f44`:
@@ -250,8 +258,7 @@ verification) and no new backend code. The final corrected regression total is
 Remaining non-blocking findings are documented in the review and the evidence
 (context-fit warning vs failover semantics; `needs_tools` always true from the
 app path; cross-turn conversation history future work; weak runtime check 7b;
-`set_var` test isolation fragility). The final corrected regression total is
-**152/152**.
+`set_var` test isolation fragility).
 
 ---
 
