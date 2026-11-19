@@ -18,17 +18,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--pd-radius-lg);
-  background: var(--pd-accent-dim);
-  color: var(--pd-accent);
   margin-bottom: var(--pd-space-5);
 }
 
-.ask-paige-icon svg {
-  width: 28px;
-  height: 28px;
+.ask-paige-mark {
+  width: 64px;
+  height: 64px;
 }
 
 .ask-paige-title {

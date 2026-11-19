@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "paige-desktop",
+  "productName": "PAIGE Desktop",
   "version": "0.1.0",
   "identifier": "com.paige.desktop",
   "build": {
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "paige-desktop",
-        "width": 800,
-        "height": 600
+        "title": "PAIGE Desktop",
+        "width": 1024,
+        "height": 768
       }
     ],
     "security": {
@@ -63,7 +63,17 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/StoreLogo.png",
+      "icons/Square30x30Logo.png",
+      "icons/Square44x44Logo.png",
+      "icons/Square71x71Logo.png",
+      "icons/Square89x89Logo.png",
+      "icons/Square107x107Logo.png",
+      "icons/Square142x142Logo.png",
+      "icons/Square150x150Logo.png",
+      "icons/Square284x284Logo.png",
+      "icons/Square310x310Logo.png"
     ]
   }
 }

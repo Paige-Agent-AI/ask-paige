@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { SVGProps } from "react";
+import { PaigeCommandMark } from "./brand/PaigeCommandMark";
 import {
   ActivityIcon,
   ChevronLeftIcon,
@@ -7,7 +9,6 @@ import {
   FolderIcon,
   SettingsIcon,
   ShieldCheckIcon,
-  SparklesIcon,
   TerminalIcon,
   UsersIcon,
 } from "./Icons";
@@ -24,8 +25,12 @@ export type Screen =
   | "models"
   | "settings";
 
+const CommandMarkNavIcon = (_props: SVGProps<SVGSVGElement>) => (
+  <PaigeCommandMark className="sidebar-item-command-mark" plated={false} label={null} />
+);
+
 const items: { id: Screen; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
-  { id: "ask", label: "Ask PAIGE", icon: SparklesIcon },
+  { id: "ask", label: "Ask PAIGE", icon: CommandMarkNavIcon },
   { id: "projects", label: "Projects", icon: FolderIcon },
   { id: "files", label: "Files", icon: FileIcon },
   { id: "approvals", label: "Approvals", icon: ShieldCheckIcon },
@@ -69,7 +74,7 @@ export function Sidebar({
     <nav className={`sidebar ${expanded ? "expanded" : ""}`}>
       <div className="sidebar-header">
         <div className="sidebar-mark">
-          <SparklesIcon />
+          <PaigeCommandMark className="sidebar-command-mark" label="PAIGE" />
           {expanded && <span className="sidebar-mark-text">PAIGE</span>}
         </div>
         <button

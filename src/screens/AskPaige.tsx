@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { SparklesIcon } from "../components/Icons";
+import { PaigeCommandMark } from "../components/brand/PaigeCommandMark";
 import "./AskPaige.css";
 
 export function AskPaige() {
@@ -11,7 +11,7 @@ export function AskPaige() {
     <div className="ask-paige">
       <div className="ask-paige-hero">
         <div className="ask-paige-icon">
-          <SparklesIcon />
+          <PaigeCommandMark className="ask-paige-mark" label="PAIGE" />
         </div>
         <h2 className="ask-paige-title">Good evening.</h2>
         <p className="ask-paige-lead">
