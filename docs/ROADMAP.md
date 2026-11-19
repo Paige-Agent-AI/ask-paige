@@ -37,6 +37,27 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
 
 ## Active
 
+### 1D — Native MCP Client + Connection Manager
+
+- Make PAIGE Desktop a full MCP client (ANT-170).
+- Support multiple simultaneous independent MCP servers:
+  - Local `stdio` subprocess servers (reusing the 1C terminal engine for spawn/kill).
+  - Remote Streamable HTTP over HTTPS servers (production builds: strict cert trust).
+- Reuse PAIGE's existing MCP client, capability gateway and integration contracts where applicable.
+- Do not create a competing orchestration layer or provider registry.
+- Required surfaces:
+  - Models & Connections MCP server management.
+  - Add / connect / disconnect / reconnect / revoke.
+  - Tool/resource/prompt discovery (`tools/list`, etc.).
+  - Authenticated connections, permissions, execution, receipts, reconnection and revocation.
+  - Truthful status: ready, auth-needed, offline, unsupported.
+  - Per-project/account bindings and isolation.
+- Potential servers (only when installed/authorized): GitHub, Linear, Supabase, Vercel, Cloudflare, AWS, Google Workspace, research/browser, local file/build tools.
+- Future secondary capability: PAIGE Desktop as a controlled MCP server for other coding agents (separate gated increment).
+- **Status:** implementation complete; MCP runtime suite passing (19/19); Rust/static/broker/terminal/ask/MCP all green; awaiting independent non-author review. STOP before 1F after review.
+- **Evidence:** `docs/INCREMENT-1D-EVIDENCE.md`
+- **Linear:** ANT-170
+
 ### 1E — Intelligent Ask PAIGE Chat / Engineering Inference UX
 
 - Functional Ask PAIGE composer: project selection, PLAN/BUILD modes, file

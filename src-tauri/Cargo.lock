@@ -2200,6 +2200,7 @@ name = "paige-desktop"
 version = "0.1.0"
 dependencies = [
  "hex",
+ "rustls",
  "serde",
  "serde_json",
  "sha2 0.10.9",

@@ -24,13 +24,20 @@ serde_json = "1"
 sha2 = "0.10"
 hex = "0.4"
 ureq = { version = "2", default-features = false, features = ["tls"] }
+# Used only by the `insecure-test-bypass` feature (test fixtures that use
+# self-signed certificates for a local authenticated HTTPS MCP server).
+# "ring" matches ureq's rustls feature set; disable defaults to avoid
+# activating both aws_lc_rs and ring (ambiguous CryptoProvider → panic).
+rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "std", "tls12"] }
 
 [features]
 default = []
 # Test-only: bypasses the native owner-confirmation dialog so automated tests
-# can exercise the full write flow. NEVER enable in a production build. The name
-# is deliberately alarming; this feature must never be used in a release.
-insecure-test-bypass = []
+# can exercise the full write flow, and enables the self-signed-certificate
+# bypass for the local HTTPS MCP test server. NEVER enable in a production
+# build. The name is deliberately alarming; this feature must never be used
+# in a release.
+insecure-test-bypass = ["rustls"]
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

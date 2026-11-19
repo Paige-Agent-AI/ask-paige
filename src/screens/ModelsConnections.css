@@ -230,3 +230,89 @@
   max-width: 520px;
   margin: 0;
 }
+
+.mcp-card {
+  gap: var(--pd-space-3);
+}
+
+.mcp-servers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pd-space-1);
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-sm);
+  padding: var(--pd-space-2);
+  background: var(--pd-bg-input);
+}
+
+.mcp-server-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--pd-space-2);
+  border-bottom: 1px solid var(--pd-border);
+}
+
+.mcp-server-row:last-child {
+  border-bottom: none;
+}
+
+.mcp-server-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pd-space-2);
+  font-size: var(--pd-text-xs);
+  color: var(--pd-text);
+}
+
+.mcp-server-meta code {
+  font-size: var(--pd-text-xs);
+}
+
+.mcp-server-detail {
+  font-size: 11px;
+  color: var(--pd-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-server-actions {
+  display: flex;
+  gap: var(--pd-space-1);
+}
+
+.mcp-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pd-space-2);
+  margin-top: var(--pd-space-2);
+}
+
+.mcp-tabs {
+  display: flex;
+  gap: var(--pd-space-1);
+}
+
+.mcp-tabs button {
+  padding: var(--pd-space-1) var(--pd-space-2);
+  font-size: var(--pd-text-xs);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-sm);
+  background: transparent;
+  color: var(--pd-text-dim);
+  cursor: pointer;
+}
+
+.mcp-tabs button.active {
+  background: var(--pd-accent);
+  color: var(--pd-bg);
+  border-color: var(--pd-accent);
+}
+
+.mcp-add .connection-keyrow {
+  margin-top: 0;
+}

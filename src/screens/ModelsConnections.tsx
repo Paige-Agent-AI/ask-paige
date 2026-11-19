@@ -3,12 +3,24 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { CpuIcon, LockIcon } from "../components/Icons";
 import { useAsk } from "../hooks/useAsk";
+import { useMcp } from "../hooks/useMcp";
 import "./ModelsConnections.css";
 
 export function ModelsConnections() {
   const ask = useAsk();
+  const mcp = useMcp();
   const [keyInput, setKeyInput] = useState("");
   const [connecting, setConnecting] = useState(false);
+
+  // MCP add-server form state
+  const [mcpTab, setMcpTab] = useState<"stdio" | "remote">("stdio");
+  const [mcpId, setMcpId] = useState("");
+  const [mcpName, setMcpName] = useState("");
+  const [mcpCommand, setMcpCommand] = useState("");
+  const [mcpArgs, setMcpArgs] = useState("");
+  const [mcpUrl, setMcpUrl] = useState("");
+  const [mcpToken, setMcpToken] = useState("");
+  const [mcpAdding, setMcpAdding] = useState(false);
 
   const omniroute = ask.status?.gateways.find((g) => g.gateway === "omniroute");
   const openrouter = ask.status?.gateways.find((g) => g.gateway === "openrouter-direct");
@@ -21,6 +33,39 @@ export function ModelsConnections() {
     setConnecting(false);
   };
 
+  const addMcp = async () => {
+    if (!mcpId.trim() || !mcpName.trim()) return;
+    setMcpAdding(true);
+    try {
+      if (mcpTab === "stdio") {
+        if (!mcpCommand.trim()) return;
+        const args = mcpArgs
+          .trim()
+          .split(/\s+/)
+          .filter((a) => a.length > 0);
+        await mcp.addStdio(mcpId.trim(), mcpName.trim(), mcpCommand.trim(), args, {}, true);
+      } else {
+        if (!mcpUrl.trim()) return;
+        const authHeader = mcpToken.trim() ? `Bearer ${mcpToken.trim()}` : undefined;
+        await mcp.addRemote(mcpId.trim(), mcpName.trim(), mcpUrl.trim(), authHeader, undefined, true);
+      }
+      setMcpId("");
+      setMcpName("");
+      setMcpCommand("");
+      setMcpArgs("");
+      setMcpUrl("");
+      setMcpToken("");
+    } finally {
+      setMcpAdding(false);
+    }
+  };
+
+  const statusClass = (state: string) => {
+    if (state === "ready") return "connection-status connection-status-ready";
+    if (state === "offline" || state === "unsupported") return "connection-status connection-status-off";
+    return "connection-status connection-status-pending";
+  };
+
   return (
     <div className="models-connections">
       <div className="models-connections-hero">
@@ -28,7 +73,7 @@ export function ModelsConnections() {
         <h2>Models & Connections</h2>
         <p>
           Truthful gateway, model and connection status for PAIGE Desktop's
-          engineering inference routes.
+          engineering inference routes and MCP servers.
         </p>
       </div>
 
@@ -136,6 +181,145 @@ export function ModelsConnections() {
           )}
         </Card>
 
+        <Card className="connection-card mcp-card">
+          <div className="connection-card-header">
+            <h3>MCP Servers</h3>
+            <span className="connection-status connection-status-pending">{mcp.servers.length}</span>
+          </div>
+          <p className="connection-card-desc">
+            Native Model Context Protocol client connections. Add local stdio
+            servers or remote HTTPS servers, discover tools/resources/prompts,
+            and execute tools with verifiable receipts.
+          </p>
+
+          <div className="mcp-servers">
+            {mcp.servers.map((srv) => (
+              <div key={srv.id} className="mcp-server-row">
+                <div className="mcp-server-meta">
+                  <code>{srv.name}</code>
+                  <span className={statusClass(srv.state)}>{srv.state}</span>
+                </div>
+                <div className="mcp-server-detail">{srv.display}</div>
+                <div className="mcp-server-detail">
+                  {srv.state === "ready"
+                    ? `${srv.capabilities.tools.length} tools · ${srv.capabilities.resources.length} resources · ${srv.capabilities.prompts.length} prompts`
+                    : srv.detail}
+                </div>
+                <div className="mcp-server-actions">
+                  {srv.state === "ready" ? (
+                    <Button variant="secondary" size="sm" onClick={() => mcp.disconnect(srv.id)}>
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button variant="primary" size="sm" onClick={() => mcp.connect(srv.id)}>
+                      Connect
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" onClick={() => mcp.reconnect(srv.id)}>
+                    Reconnect
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => mcp.revoke(srv.id)}>
+                    Revoke
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {mcp.servers.length === 0 && (
+              <p className="connection-card-note">No MCP servers configured yet.</p>
+            )}
+          </div>
+
+          <div className="mcp-add">
+            <div className="mcp-tabs">
+              <button className={mcpTab === "stdio" ? "active" : ""} onClick={() => setMcpTab("stdio")} type="button">
+                stdio
+              </button>
+              <button className={mcpTab === "remote" ? "active" : ""} onClick={() => setMcpTab("remote")} type="button">
+                remote HTTPS
+              </button>
+            </div>
+            {mcpTab === "stdio" ? (
+              <>
+                <div className="connection-keyrow">
+                  <input
+                    className="connection-keyinput"
+                    placeholder="id"
+                    value={mcpId}
+                    onChange={(e) => setMcpId(e.target.value)}
+                  />
+                  <input
+                    className="connection-keyinput"
+                    placeholder="display name"
+                    value={mcpName}
+                    onChange={(e) => setMcpName(e.target.value)}
+                  />
+                </div>
+                <div className="connection-keyrow">
+                  <input
+                    className="connection-keyinput"
+                    placeholder="command (e.g. node)"
+                    value={mcpCommand}
+                    onChange={(e) => setMcpCommand(e.target.value)}
+                  />
+                  <input
+                    className="connection-keyinput"
+                    placeholder="args (space separated)"
+                    value={mcpArgs}
+                    onChange={(e) => setMcpArgs(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="connection-keyrow">
+                  <input
+                    className="connection-keyinput"
+                    placeholder="id"
+                    value={mcpId}
+                    onChange={(e) => setMcpId(e.target.value)}
+                  />
+                  <input
+                    className="connection-keyinput"
+                    placeholder="display name"
+                    value={mcpName}
+                    onChange={(e) => setMcpName(e.target.value)}
+                  />
+                </div>
+                <div className="connection-keyrow">
+                  <input
+                    className="connection-keyinput"
+                    placeholder="https://host/mcp"
+                    value={mcpUrl}
+                    onChange={(e) => setMcpUrl(e.target.value)}
+                  />
+                  <input
+                    type="password"
+                    className="connection-keyinput"
+                    placeholder="bearer token"
+                    value={mcpToken}
+                    onChange={(e) => setMcpToken(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={addMcp}
+              disabled={
+                mcpAdding ||
+                !mcpId.trim() ||
+                !mcpName.trim() ||
+                (mcpTab === "stdio" ? !mcpCommand.trim() : !mcpUrl.trim())
+              }
+            >
+              {mcpAdding ? "Adding…" : "Add & connect"}
+            </Button>
+          </div>
+
+          {mcp.error && <div className="connection-error">{mcp.error}</div>}
+        </Card>
+
         <Card className="connection-card">
           <div className="connection-card-header">
             <h3>Qualified models</h3>
@@ -162,19 +346,22 @@ export function ModelsConnections() {
         <Card className="connection-card">
           <div className="connection-card-header">
             <h3>Receipts</h3>
-            <span className="connection-status connection-status-pending">{ask.receipts.length}</span>
+            <span className="connection-status connection-status-pending">{ask.receipts.length + mcp.receipts.length}</span>
           </div>
           <div className="connection-receipts">
-            {ask.receipts.slice(-8).reverse().map((r, i) => (
-              <div key={i} className="connection-receipt">
-                <code>{r.tool}</code>
-                <span className="connection-receipt-meta">
-                  {r.model} · {r.outcome} · {r.summary.slice(0, 80)}
-                </span>
-              </div>
-            ))}
-            {ask.receipts.length === 0 && (
-              <p className="connection-card-note">No inference receipts yet this session.</p>
+            {[...ask.receipts, ...mcp.receipts]
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .slice(0, 12)
+              .map((r, i) => (
+                <div key={i} className="connection-receipt">
+                  <code>{"connection_id" in r ? `mcp:${r.tool}` : r.tool}</code>
+                  <span className="connection-receipt-meta">
+                    {"connection_id" in r ? (r as { connection_id: string }).connection_id : r.model} · {r.outcome} · {r.summary.slice(0, 80)}
+                  </span>
+                </div>
+              ))}
+            {ask.receipts.length === 0 && mcp.receipts.length === 0 && (
+              <p className="connection-card-note">No inference or MCP receipts yet this session.</p>
             )}
           </div>
         </Card>
@@ -188,8 +375,9 @@ export function ModelsConnections() {
         <p>
           PAIGE Desktop's inference layer is a fixed table: OmniRoute (preferred)
           and direct OpenRouter (alternate), plus an explicitly labeled local
-          harness used only by automated tests. This is not a general provider
-          registry. Native MCP client connections arrive in Increment 1D.
+          harness used only by automated tests. MCP connections are managed as
+          independent client attachments with per-server credentials and
+          receipts — not a second orchestration registry.
         </p>
       </Card>
     </div>

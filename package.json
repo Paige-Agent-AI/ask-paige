@@ -13,7 +13,8 @@
     "test:security:runtime": "node scripts/test-csp-runtime.mjs",
     "test:broker:runtime": "node scripts/test-broker-runtime.mjs",
     "test:terminal:runtime": "node scripts/test-terminal-runtime.mjs",
-    "test:ask:runtime": "node scripts/test-ask-runtime.mjs"
+    "test:ask:runtime": "node scripts/test-ask-runtime.mjs",
+    "test:mcp:runtime": "node scripts/test-mcp-runtime.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

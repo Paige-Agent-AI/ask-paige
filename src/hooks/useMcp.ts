@@ -1,0 +1,182 @@
+import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { McpCallResult, McpReceipt, McpServerStatus, McpStatus } from "../types/mcp";
+
+export interface McpMessageEvent {
+  connection_id: string;
+  stream: string;
+  line: string;
+  timestamp: number;
+}
+
+export interface McpToolResultEvent {
+  connection_id: string;
+  tool: string;
+  outcome: string;
+  summary: string;
+}
+
+export interface UseMcpResult {
+  servers: McpServerStatus[];
+  receipts: McpReceipt[];
+  messages: McpMessageEvent[];
+  error: string | null;
+  refreshing: boolean;
+  refresh: () => Promise<void>;
+  addStdio: (id: string, name: string, command: string, args: string[], env: Record<string, string>, autoConnect: boolean) => Promise<McpServerStatus>;
+  addRemote: (id: string, name: string, url: string, authHeader?: string, authToken?: string, autoConnect?: boolean) => Promise<McpServerStatus>;
+  connect: (id: string) => Promise<McpServerStatus>;
+  disconnect: (id: string) => Promise<void>;
+  reconnect: (id: string) => Promise<McpServerStatus>;
+  revoke: (id: string) => Promise<void>;
+  callTool: (connectionId: string, tool: string, args: Record<string, unknown>) => Promise<McpCallResult>;
+}
+
+export function useMcp(): UseMcpResult {
+  const [servers, setServers] = useState<McpServerStatus[]>([]);
+  const [receipts, setReceipts] = useState<McpReceipt[]>([]);
+  const [messages, setMessages] = useState<McpMessageEvent[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const s = (await invoke("mcp_status")) as McpStatus;
+      setServers(s.servers);
+      setError(null);
+    } catch (e) {
+      setError("MCP status failed: " + String(e));
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  const loadReceipts = useCallback(async () => {
+    try {
+      const r = (await invoke("mcp_receipts")) as McpReceipt[];
+      setReceipts(r);
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const subs: UnlistenFn[] = [];
+    (async () => {
+      subs.push(
+        await listen<McpMessageEvent>("mcp-message", (event) => {
+          if (!mounted) return;
+          setMessages((prev) => [...prev.slice(-99), event.payload]);
+        }),
+      );
+      subs.push(
+        await listen<McpToolResultEvent>("mcp-tool-result", () => {
+          if (!mounted) return;
+          loadReceipts();
+        }),
+      );
+    })();
+    return () => {
+      mounted = false;
+      subs.forEach((u) => u());
+    };
+  }, [loadReceipts]);
+
+  useEffect(() => {
+    refresh();
+    loadReceipts();
+  }, [refresh, loadReceipts]);
+
+  const withRefresh = async <T,>(promise: Promise<T>): Promise<T> => {
+    try {
+      const result = await promise;
+      await refresh();
+      await loadReceipts();
+      setError(null);
+      return result;
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    }
+  };
+
+  const addStdio = useCallback(
+    async (id: string, name: string, command: string, args: string[], env: Record<string, string>, autoConnect: boolean) => {
+      return withRefresh(
+        invoke("mcp_add_stdio", {
+          request: { id, name, command, args, env, auto_connect: autoConnect },
+        }) as Promise<McpServerStatus>,
+      );
+    },
+    [refresh, loadReceipts],
+  );
+
+  const addRemote = useCallback(
+    async (id: string, name: string, url: string, authHeader?: string, authToken?: string, autoConnect?: boolean) => {
+      return withRefresh(
+        invoke("mcp_add_remote", {
+          request: { id, name, url, auth_header: authHeader, auth_token: authToken, auto_connect: autoConnect ?? false },
+        }) as Promise<McpServerStatus>,
+      );
+    },
+    [refresh, loadReceipts],
+  );
+
+  const connect = useCallback(
+    async (id: string) => {
+      return withRefresh(invoke("mcp_connect", { id }) as Promise<McpServerStatus>);
+    },
+    [refresh, loadReceipts],
+  );
+
+  const disconnect = useCallback(
+    async (id: string) => {
+      await withRefresh(invoke("mcp_disconnect", { id }) as Promise<McpStatus>);
+    },
+    [refresh, loadReceipts],
+  );
+
+  const reconnect = useCallback(
+    async (id: string) => {
+      return withRefresh(invoke("mcp_reconnect", { id }) as Promise<McpServerStatus>);
+    },
+    [refresh, loadReceipts],
+  );
+
+  const revoke = useCallback(
+    async (id: string) => {
+      await withRefresh(invoke("mcp_revoke", { id }) as Promise<McpStatus>);
+    },
+    [refresh, loadReceipts],
+  );
+
+  const callTool = useCallback(
+    async (connectionId: string, tool: string, args: Record<string, unknown>) => {
+      return withRefresh(
+        invoke("mcp_call_tool", {
+          request: { connection_id: connectionId, tool, arguments: args },
+        }) as Promise<McpCallResult>,
+      );
+    },
+    [refresh, loadReceipts],
+  );
+
+  return {
+    servers,
+    receipts,
+    messages,
+    error,
+    refreshing,
+    refresh,
+    addStdio,
+    addRemote,
+    connect,
+    disconnect,
+    reconnect,
+    revoke,
+    callTool,
+  };
+}

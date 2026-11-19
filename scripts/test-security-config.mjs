@@ -89,6 +89,15 @@ const allowed = new Set([
   "allow-ask-send",
   "allow-ask-cancel",
   "allow-ask-receipts",
+  "allow-mcp-status",
+  "allow-mcp-add-stdio",
+  "allow-mcp-add-remote",
+  "allow-mcp-connect",
+  "allow-mcp-disconnect",
+  "allow-mcp-reconnect",
+  "allow-mcp-revoke",
+  "allow-mcp-call-tool",
+  "allow-mcp-receipts",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];

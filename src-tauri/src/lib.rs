@@ -2,11 +2,13 @@
 mod ask;
 mod broker;
 mod gateway;
+mod mcp;
 mod secrets;
 mod terminal;
 
 use ask::AskState;
 use broker::BrokerState;
+use mcp::McpState;
 use terminal::TerminalState;
 use std::sync::Mutex;
 
@@ -17,10 +19,13 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let mcp_state = Mutex::new(McpState::new());
+    mcp::load_persisted_servers(&mcp_state);
     tauri::Builder::default()
         .manage(Mutex::new(BrokerState::new()))
         .manage(Mutex::new(TerminalState::new()))
         .manage(Mutex::new(AskState::new()))
+        .manage(mcp_state)
         .invoke_handler(tauri::generate_handler![
             greet,
             broker::broker_status,
@@ -52,6 +57,15 @@ pub fn run() {
             ask::ask_send,
             ask::ask_cancel,
             ask::ask_receipts,
+            mcp::mcp_status,
+            mcp::mcp_add_stdio,
+            mcp::mcp_add_remote,
+            mcp::mcp_connect,
+            mcp::mcp_disconnect,
+            mcp::mcp_reconnect,
+            mcp::mcp_revoke,
+            mcp::mcp_call_tool,
+            mcp::mcp_receipts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

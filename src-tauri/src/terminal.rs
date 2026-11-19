@@ -229,7 +229,7 @@ fn command_description(risk: TerminalRisk, command_line: &str) -> String {
 
 // Resolve a command name to an absolute executable path using PATH/PATHEXT.
 // Rejects explicit relative/absolute paths that contain path separators.
-fn resolve_executable(name: &str) -> Result<PathBuf, String> {
+pub fn resolve_executable(name: &str) -> Result<PathBuf, String> {
     if name.is_empty() {
         return Err("empty command".to_string());
     }

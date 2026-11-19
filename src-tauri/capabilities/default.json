@@ -35,6 +35,15 @@
     "allow-ask-set-model-selection",
     "allow-ask-send",
     "allow-ask-cancel",
-    "allow-ask-receipts"
+    "allow-ask-receipts",
+    "allow-mcp-status",
+    "allow-mcp-add-stdio",
+    "allow-mcp-add-remote",
+    "allow-mcp-connect",
+    "allow-mcp-disconnect",
+    "allow-mcp-reconnect",
+    "allow-mcp-revoke",
+    "allow-mcp-call-tool",
+    "allow-mcp-receipts"
   ]
 }

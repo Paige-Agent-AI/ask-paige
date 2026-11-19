@@ -30,6 +30,15 @@ fn main() {
         "ask_send",
         "ask_cancel",
         "ask_receipts",
+        "mcp_status",
+        "mcp_add_stdio",
+        "mcp_add_remote",
+        "mcp_connect",
+        "mcp_disconnect",
+        "mcp_reconnect",
+        "mcp_revoke",
+        "mcp_call_tool",
+        "mcp_receipts",
     ]);
     let attributes = tauri_build::Attributes::new().app_manifest(app_manifest);
     tauri_build::try_build(attributes).expect("failed to run tauri-build");

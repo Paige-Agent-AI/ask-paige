@@ -39,9 +39,9 @@ struct DATA_BLOB {
 
 const CRYPTPROTECT_UI_FORBIDDEN: u32 = 0x1;
 
-fn dpapi_protect(plain: &[u8]) -> Result<Vec<u8>, String> {
+pub fn dpapi_protect(plain: &[u8]) -> Result<Vec<u8>, String> {
     unsafe {
-        let mut in_blob = DATA_BLOB {
+        let in_blob = DATA_BLOB {
             cb_size: plain.len() as u32,
             pb_data: plain.as_ptr() as *mut u8,
         };
@@ -64,7 +64,7 @@ fn dpapi_protect(plain: &[u8]) -> Result<Vec<u8>, String> {
     }
 }
 
-fn dpapi_unprotect(cipher: &[u8]) -> Result<Vec<u8>, String> {
+pub fn dpapi_unprotect(cipher: &[u8]) -> Result<Vec<u8>, String> {
     unsafe {
         let in_blob = DATA_BLOB {
             cb_size: cipher.len() as u32,
