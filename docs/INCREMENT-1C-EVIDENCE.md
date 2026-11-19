@@ -153,7 +153,7 @@ corrections were applied:
    fresh independent non-author review of the corrected code was obtained
    (see `docs/REVIEW-INCREMENT-1C-CORRECTION.md`).
 
-The reviewed code commit is `b6bf0bc` (corrections); documentation-only
+The reviewed code commit is `8b94e5b` (corrections); documentation-only
 commits after it do not alter code.
 
 ---
