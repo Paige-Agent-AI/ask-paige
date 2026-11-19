@@ -297,6 +297,7 @@ enum SessionStatus {
     Running,
     Exited(i32),
     Killed,
+    KillFailed,
 }
 
 struct ManagedSession {
@@ -307,6 +308,8 @@ struct ManagedSession {
     status: SessionStatus,
     input_tx: mpsc::Sender<ControlMsg>,
     output: Vec<TerminalOutputEvent>,
+    stdout_lines: usize,
+    stderr_lines: usize,
 }
 
 pub struct TerminalState {
@@ -343,11 +346,33 @@ impl TerminalState {
     }
 }
 
+// Validate a cwd from the request, or fall back to the first valid allowed root.
+// Fail closed when no authorized root is available: never panic, never launch.
+fn resolve_cwd(state: &Mutex<TerminalState>, requested: Option<&str>) -> Result<PathBuf, String> {
+    if let Some(cwd) = requested {
+        return validate_cwd(cwd, &state.lock().unwrap().allowed_roots);
+    }
+    let s = state.lock().unwrap();
+    s.allowed_roots
+        .first()
+        .cloned()
+        .ok_or_else(|| "no authorized project root is available; execution refused (fail closed)".to_string())
+}
+
 fn format_command_line(command: &str, args: &[String]) -> String {
     let mut parts = vec![command.to_string()];
     parts.extend(args.iter().cloned());
     // Simple, safe display; not shell-quoted.
     parts.join(" ")
+}
+
+// Garbage-collect expired pending approval tokens. Expired tokens were already
+// rejected at approval time; this sweep removes them from memory.
+fn sweep_expired_pending(state: &Mutex<TerminalState>) {
+    let now = now_secs();
+    let mut s = state.lock().unwrap();
+    s.pending
+        .retain(|_, p| now.saturating_sub(p.created_at) <= APPROVAL_TTL_SECS);
 }
 
 fn spawn_and_manage(
@@ -358,12 +383,7 @@ fn spawn_and_manage(
     command_line: String,
     _risk: TerminalRisk,
 ) -> Result<TerminalSession, String> {
-    let cwd = request
-        .cwd
-        .as_deref()
-        .map(|c| validate_cwd(c, &state.lock().unwrap().allowed_roots))
-        .transpose()?
-        .unwrap_or_else(|| state.lock().unwrap().allowed_roots[0].clone());
+    let cwd = resolve_cwd(state, request.cwd.as_deref())?;
 
     let mut cmd = Command::new(&resolved_exe);
     cmd.args(&request.args)
@@ -415,6 +435,7 @@ fn spawn_and_manage(
                         if sess.output.len() < 10_000 {
                             sess.output.push(event);
                         }
+                        sess.stdout_lines += 1;
                     }
                 }
             }
@@ -440,6 +461,7 @@ fn spawn_and_manage(
                         if sess.output.len() < 10_000 {
                             sess.output.push(event);
                         }
+                        sess.stderr_lines += 1;
                     }
                 }
             }
@@ -460,6 +482,8 @@ fn spawn_and_manage(
                 status: SessionStatus::Running,
                 input_tx: ctrl_tx,
                 output: Vec::new(),
+                stdout_lines: 0,
+                stderr_lines: 0,
             },
         );
     }
@@ -468,7 +492,8 @@ fn spawn_and_manage(
     let _state_manager = state;
     thread::spawn(move || {
         let mut stdin = stdin;
-        let mut killed = false;
+        let mut kill_error: Option<String> = None;
+        let mut kill_requested = false;
         let exit_code = loop {
             match ctrl_rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(ControlMsg::Input(text)) => {
@@ -477,8 +502,11 @@ fn spawn_and_manage(
                     let _ = stdin.flush();
                 }
                 Ok(ControlMsg::Kill) => {
-                    killed = true;
-                    let _ = kill_process_tree(pid);
+                    kill_requested = true;
+                    // Verify the actual kill result and report failures truthfully.
+                    if let Err(e) = kill_process_tree(pid) {
+                        kill_error = Some(e);
+                    }
                     // After asking Windows to kill the tree, wait for the child.
                     let _ = child.wait();
                     break -1;
@@ -495,7 +523,17 @@ fn spawn_and_manage(
         };
 
         let finished_at = now_secs();
-        let status_str = if killed { "killed".to_string() } else { "exited".to_string() };
+        // Report the termination truthfully:
+        // - normal exit -> "exited"
+        // - kill requested and taskkill succeeded -> "killed"
+        // - kill requested but taskkill failed -> "kill_failed: <error>"
+        let status_str = if !kill_requested {
+            "exited".to_string()
+        } else if let Some(e) = &kill_error {
+            format!("kill_failed: {e}")
+        } else {
+            "killed".to_string()
+        };
 
         let _ = app_manager.emit(
             "terminal-exit",
@@ -510,12 +548,20 @@ fn spawn_and_manage(
         // Update state and store receipt.
         if let Some(ts) = app_manager.try_state::<Mutex<TerminalState>>() {
             let mut s = ts.lock().unwrap();
+            let mut stdout_count = 0usize;
+            let mut stderr_count = 0usize;
             if let Some(sess) = s.sessions.get_mut(&sid_exit) {
-                sess.status = if killed {
-                    SessionStatus::Killed
-                } else {
+                // Report termination truthfully: normal exit, verified kill, or
+                // failed kill (uncertain termination) as distinct states.
+                sess.status = if !kill_requested {
                     SessionStatus::Exited(exit_code)
+                } else if kill_error.is_some() {
+                    SessionStatus::KillFailed
+                } else {
+                    SessionStatus::Killed
                 };
+                stdout_count = sess.stdout_lines;
+                stderr_count = sess.stderr_lines;
             }
             s.receipts.push(TerminalReceipt {
                 session_id: sid_exit.clone(),
@@ -524,8 +570,8 @@ fn spawn_and_manage(
                 exit_code,
                 started_at,
                 finished_at,
-                stdout_lines: 0, // Approximate; frontend can count.
-                stderr_lines: 0,
+                stdout_lines: stdout_count,
+                stderr_lines: stderr_count,
                 status: status_str,
             });
         }
@@ -563,6 +609,9 @@ pub fn terminal_execute(
     state: tauri::State<Mutex<TerminalState>>,
     request: TerminalExecuteRequest,
 ) -> Result<TerminalExecuteResponse, String> {
+    // Garbage-collect expired approval tokens from previous requests.
+    sweep_expired_pending(state.inner());
+
     let command = request.command.trim().to_string();
     let risk = classify_command(&command, &request.args);
     let resolved_exe = resolve_executable(&command)?;
@@ -674,6 +723,7 @@ pub fn terminal_list(state: tauri::State<Mutex<TerminalState>>) -> Vec<TerminalS
                 SessionStatus::Running => "running".to_string(),
                 SessionStatus::Exited(c) => format!("exited:{c}"),
                 SessionStatus::Killed => "killed".to_string(),
+                SessionStatus::KillFailed => "kill_failed".to_string(),
             },
             started_at: sess.started_at,
         })
@@ -761,5 +811,86 @@ mod tests {
         let allowed = vec![root.clone()];
         let res = validate_cwd(r"C:\Windows", &allowed);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn resolve_cwd_fails_closed_with_no_allowed_roots() {
+        // An unavailable/invalid authorized root must fail closed — never
+        // panic, never launch a command.
+        let state = Mutex::new(TerminalState {
+            next_id: 1,
+            sessions: HashMap::new(),
+            receipts: Vec::new(),
+            pending: HashMap::new(),
+            allowed_roots: Vec::new(),
+        });
+        let res = resolve_cwd(&state, None);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("fail closed"));
+    }
+
+    #[test]
+    fn resolve_cwd_honors_requested_cwd() {
+        let root = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let sub = root.join("paige-terminal-test-sub2");
+        let _ = std::fs::create_dir_all(&sub);
+        let state = Mutex::new(TerminalState {
+            next_id: 1,
+            sessions: HashMap::new(),
+            receipts: Vec::new(),
+            pending: HashMap::new(),
+            allowed_roots: vec![root],
+        });
+        let res = resolve_cwd(&state, Some(sub.to_string_lossy().to_string().as_str()));
+        assert!(res.is_ok(), "{res:?}");
+    }
+
+    #[test]
+    fn sweep_removes_expired_pending_tokens() {
+        let mut s = TerminalState {
+            next_id: 1,
+            sessions: HashMap::new(),
+            receipts: Vec::new(),
+            pending: HashMap::new(),
+            allowed_roots: Vec::new(),
+        };
+        let old_req = TerminalExecuteRequest {
+            command: "cmd".to_string(),
+            args: vec![],
+            cwd: None,
+            env: HashMap::new(),
+        };
+        let old_resolved = PathBuf::from("x");
+        let old_time = now_secs().saturating_sub(APPROVAL_TTL_SECS + 60);
+        s.pending.insert(
+            "expired".to_string(),
+            PendingExecution {
+                request: old_req,
+                resolved_exe: old_resolved,
+                risk: TerminalRisk::Privileged,
+                command_line: "cmd".to_string(),
+                created_at: old_time,
+            },
+        );
+        s.pending.insert(
+            "fresh".to_string(),
+            PendingExecution {
+                request: TerminalExecuteRequest {
+                    command: "cmd".to_string(),
+                    args: vec![],
+                    cwd: None,
+                    env: HashMap::new(),
+                },
+                resolved_exe: PathBuf::from("x"),
+                risk: TerminalRisk::Privileged,
+                command_line: "cmd".to_string(),
+                created_at: now_secs(),
+            },
+        );
+        let state = Mutex::new(s);
+        sweep_expired_pending(&state);
+        let s = state.lock().unwrap();
+        assert!(!s.pending.contains_key("expired"));
+        assert!(s.pending.contains_key("fresh"));
     }
 }

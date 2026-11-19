@@ -8,8 +8,41 @@ import "./Terminal.css";
 function parseCommandLine(line: string): { command: string; args: string[] } {
   const trimmed = line.trim();
   if (!trimmed) return { command: "", args: [] };
-  // Simple whitespace split. Quotes are not handled for Increment 1C.
-  const parts = trimmed.split(/\s+/);
+
+  // Windows-style tokenizer: whitespace separates arguments, double quotes
+  // group arguments containing spaces, and backslash escapes a quote.
+  // The backend receives a plain argv array — no shell is ever invoked, so
+  // quoting never reaches a command interpreter.
+  const parts: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let started = false;
+  let i = 0;
+
+  while (i < trimmed.length) {
+    const ch = trimmed[i];
+
+    if (ch === '"' && (i === 0 || trimmed[i - 1] !== "\\")) {
+      inQuotes = !inQuotes;
+      started = true;
+    } else if (!inQuotes && /\s/.test(ch)) {
+      if (started || current.length > 0) {
+        parts.push(current);
+        current = "";
+        started = false;
+      }
+    } else {
+      current += ch;
+      started = true;
+    }
+    i++;
+  }
+
+  if (started || current.length > 0) {
+    parts.push(current);
+  }
+
+  if (parts.length === 0) return { command: "", args: [] };
   return { command: parts[0], args: parts.slice(1) };
 }
 

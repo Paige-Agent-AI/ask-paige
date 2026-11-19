@@ -76,14 +76,20 @@ Privileged/rejected names include `cmd`, `powershell`, `del`, `rd`, `format`,
 
 ## E. Regression test totals
 
-| Suite | Result |
-|---|---|
-| Rust unit tests (`cargo test --lib`) | **19/19 pass** |
-| Static security tests (`npm run test:security`) | **41/41 pass** |
-| CSP runtime tests (`npm run test:security:runtime`) | **10/10 pass** |
-| Broker runtime tests (`npm run test:broker:runtime`) | **26/26 pass** |
-| Terminal runtime tests (`npm run test:terminal:runtime`) | **13/13 pass** |
-| **Total** | **119/119** |
+> **Count reconciliation (2026-11-19 correction):** the original closeout
+> incorrectly reported **119/119**. The accurate original total was
+> **109/109** (19 + 41 + 10 + 26 + 13). The miscount was an arithmetic error
+> in the closeout report; no suite was omitted and no test evidence was
+> missing. After the 1C corrections below, the suite grew to **115/115**.
+
+| Suite | Result (original) | Result (after corrections) |
+|---|---|---|
+| Rust unit tests (`cargo test --lib`) | **19/19 pass** | **22/22 pass** |
+| Static security tests (`npm run test:security`) | **41/41 pass** | **41/41 pass** |
+| CSP runtime tests (`npm run test:security:runtime`) | **10/10 pass** | **10/10 pass** |
+| Broker runtime tests (`npm run test:broker:runtime`) | **26/26 pass** | **26/26 pass** |
+| Terminal runtime tests (`npm run test:terminal:runtime`) | **13/13 pass** | **16/16 pass** |
+| **Total** | **109/109** | **115/115** |
 
 ---
 
@@ -92,10 +98,10 @@ Privileged/rejected names include `cmd`, `powershell`, `del`, `rd`, `format`,
 | Property | Value |
 |---|---|
 | Build command | `npm run tauri build` (full bundle) |
-| Source commit | `e73b045` |
+| Source commit | corrections applied within Increment 1C |
 | Artifact | `src-tauri/target/release/paige-desktop.exe` |
-| Size | **4,501,504 bytes** |
-| SHA-256 | `E151BCD094CAA0A6624DDF708396ACC7B2C44A20660D345F994A8DC023CE5ABF` |
+| Size | **4,503,040 bytes** |
+| SHA-256 | `25F0E67FECED57F8D230277760075C66C0A57860D6D1E5A3152D126D467D12F8` |
 | `PAIGE_BROKER_TEST_MODE` string | Absent |
 
 ---
@@ -115,19 +121,51 @@ All screenshots show the actual compiled workstation UI, not concept art.
 ## H. Independent review
 
 Exact-head independent review performed against `e73b045` by a non-author
-reviewer. Full report: `docs/REVIEW-INCREMENT-1C.md`.
+reviewer (verdict: ACCEPT WITH FINDINGS). Full report:
+`docs/REVIEW-INCREMENT-1C.md`.
+
+### 1C correction pass (owner-directed, 2026-11-19)
+
+The owner directed a bounded reconciliation within Increment 1C. All six
+corrections were applied:
+
+1. **Regression count reconciled.** The closeout's "119/119" was an
+   arithmetic error; the accurate original total was **109/109**. No suite
+   was omitted and no test evidence was missing.
+2. **Missing-root handling fixed.** `resolve_cwd` fails closed with a
+   structured error when no authorized root is available — never panics,
+   never launches. Covered by a new unit test.
+3. **Kill result verified.** `taskkill`'s exit status is checked; a failed
+   kill is reported truthfully as `kill_failed: <error>` in the exit event,
+   session status and receipt (`SessionStatus::KillFailed`), instead of
+   being claimed as `killed`.
+4. **Quoted-argument parsing resolved.** The frontend tokenizer handles
+   Windows-style double-quoted arguments (including escaped quotes); the
+   backend continues to receive a plain argv array with no shell
+   intermediary, so the allowlist and injection posture are unchanged.
+   Verified end-to-end by a new runtime check
+   (`node -e "console.log('quoted arg test')"`).
+5. **Receipt accuracy corrected.** `stdout_lines` / `stderr_lines` are real
+   per-session counts from the reader threads; receipts carry them.
+   Expired approval-token garbage collection (`sweep_expired_pending`) was
+   also added and is unit-tested.
+6. **Rebuild + re-review.** Full rebuild, all suites re-run (115/115), and a
+   fresh independent non-author review of the corrected code was obtained
+   (see `docs/REVIEW-INCREMENT-1C-CORRECTION.md`).
+
+The reviewed code commit is `b6bf0bc` (corrections); documentation-only
+commits after it do not alter code.
 
 ---
 
 ## I. Remaining limitations
 
-- Terminal commands are split by whitespace; quoted arguments are not yet
-  supported.
 - Output buffering is limited to 10,000 lines per session.
 - stdin interaction is implemented at the backend but not exposed in the UI for
   Increment 1C.
 - The process engine is reused conceptually for future MCP `stdio` connections,
   but the MCP protocol layer is not yet implemented.
+- Production binary is unsigned (prototype phase).
 
 ---
 

@@ -125,9 +125,26 @@ try {
     check("6c. process status is killed", sess6?.status === "killed", sess6?.status);
   }
 
-  // 7. Receipts include the completed sessions.
+  // 7. Receipts include the completed sessions with real output counts.
   const receipts = await invoke("terminal_receipts");
   check("7. receipts exist", Array.isArray(receipts) && receipts.length >= 2, `count=${receipts?.length}`);
+  const nodeReceipt = Array.isArray(receipts) && receipts.find((r) => r.command_line && r.command_line.startsWith("node --version"));
+  check("7b. node receipt records stdout line count", nodeReceipt && typeof nodeReceipt.stdout_lines === "number" && nodeReceipt.stdout_lines >= 1, JSON.stringify(nodeReceipt));
+
+  // 8. Arguments containing spaces are passed as a single argv entry.
+  const r8 = await invoke("terminal_execute", { request: { command: "node", args: ["-e", "console.log('quoted arg test')"] } });
+  check("8a. node -e with spaced arg starts", r8?.type === "session" && r8?.session_id, JSON.stringify(r8));
+  if (r8?.session_id) {
+    for (let i = 0; i < 60; i++) {
+      await sleep(300);
+      const list = await invoke("terminal_list");
+      const s = Array.isArray(list) && list.find((x) => x.session_id === r8.session_id);
+      if (s && s.status !== "running") break;
+    }
+    const out8 = await getOutput(r8.session_id);
+    const found = out8.some((o) => o.line.includes("quoted arg test"));
+    check("8b. spaced argument reaches the process intact", found, out8.map((o) => o.line).join(" | ").slice(0, 120));
+  }
 
   const failed = results.filter((r) => !r.pass).length;
   console.log(`\n${results.length - failed}/${results.length} terminal runtime checks passed`);
