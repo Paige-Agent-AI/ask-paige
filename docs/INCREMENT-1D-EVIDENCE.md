@@ -189,6 +189,38 @@ production binary cannot connect to self-signed servers. This is intentional
 | MCP runtime (`npm run test:mcp:runtime`) | **19/19 pass** |
 | **Total** | **192** (45+41+26+16+24+19) |
 
+## I. Independent non-author review (PASS WITH MINOR FINDINGS)
+
+An independent non-author reviewer audited the 1D diff at HEAD `f57b5f1`
+(final code `adfaac2` after fixes) and returned verdict **PASS WITH MINOR
+FINDINGS**. Major security properties verified by review + runtime:
+
+- **DPAPI:** `mcp_revoke` deletes the server from `mcp.json` (verified by code
+  + runtime 6a–6c); `protect_server_config` DPAPI-encrypts sensitive fields;
+  WebView receives no auth material.
+- **stdio spawn:** command-name-only (no paths), allowlisted, direct exec
+  (no shell injection).
+- **Remote HTTPS:** `remote_post` rejects non-https at add-time and call-time.
+- **Receipts:** `mcp_call_tool` records `McpReceipt`s (verified via `mcp_receipts`).
+- **Feature gating:** the test bypass is `#[cfg(feature)]` + env-gated and
+  cannot fire in default builds.
+
+Findings and how they were addressed:
+
+- **F1 (release binary contains feature-gated test strings):** the release
+  `target/release/paige-desktop.exe` was rebuilt without the feature
+  (`cargo build --release`); a byte-level scan now shows `PAIGE_MCP_TEST_INSECURE_REMOTE`,
+  `PAIGE_BROKER_TEST_MODE`, `PAIGE_TEST_GATEWAY`, and `TEST-ONLY` **all absent**.
+- **F2 (flaky test):** `mcp_config_round_trip` + `config_key_store_round_trip`
+  raced on the process-global `PAIGE_TEST_CONFIG_DIR`; fixed with a shared
+  `secrets::TEST_CONFIG_LOCK`. Verified: `cargo test --lib` × 3 default and × 2
+  feature runs — all 45/45.
+- **F3 (MCP stdio inherits app cwd; terminal's `validate_cwd` not applied):**
+  documented as minor observation; stdio servers are allowlisted dev commands.
+- **F4 (`mcp_call_tool` doesn't return the receipt object; receipts via `mcp_receipts` + `mcp-tool-result` event):** documented minor nuance; runtime suite verifies via `mcp_receipts`.
+- **F5 (server stderr relay via `mcp-message`):** documented minor observation.
+- **F6 (evidence table noted first-run flake; fixed as above):** now resolved.
+
 ## H. Status
 
 - Implementation: complete (backend, commands, UI, tests, fixtures).
