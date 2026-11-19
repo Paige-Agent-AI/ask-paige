@@ -94,8 +94,8 @@ Privileged/rejected names include `cmd`, `powershell`, `del`, `rd`, `format`,
 | Build command | `npm run tauri build` (full bundle) |
 | Source commit | `e73b045` |
 | Artifact | `src-tauri/target/release/paige-desktop.exe` |
-| Size | **4,493,824 bytes** |
-| SHA-256 | `D0B6A9CC6CB007DB118050BD89E64A2B17DEA2FD7B60D338201FEFA1A9B20653` |
+| Size | **4,501,504 bytes** |
+| SHA-256 | `E151BCD094CAA0A6624DDF708396ACC7B2C44A20660D345F994A8DC023CE5ABF` |
 | `PAIGE_BROKER_TEST_MODE` string | Absent |
 
 ---
