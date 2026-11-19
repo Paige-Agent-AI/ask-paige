@@ -14,7 +14,7 @@ result + receipts workflow.
 
 ## A. Source and commit identity
 
-- **HEAD:** `d2d7758a2fe086780d9b7e89100c11bb4eed47d6`
+- **HEAD:** `b3793f94126d8f000d771e6aeb20d72d55aa2a12`
 - **Branch:** `feat/paige-desktop-prototype`
 - **Reviewed code commit:** `da59cb919e2cd0160743e2a09a0d7a587c38df3b` (subsequent
   commits are docs-only: binary hash and evidence tidy)
@@ -24,7 +24,8 @@ result + receipts workflow.
   - `faf1aa6` — workspace OpenRouter connect banner
   - `da59cb9` — environment-aware ask runtime test + corrected totals
   - `89c2992` — final evidence with rebuilt binary hash
-  - `d2d7758` — evidence HEAD reference cleanup (HEAD)
+  - `d2d7758` — evidence HEAD reference cleanup
+  - `b3793f9` — final HEAD reference (HEAD)
 
 Key files:
 
