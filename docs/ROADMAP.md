@@ -49,7 +49,7 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
   receipts; streaming with cancellation.
 - Complete workflow: instruction → model → broker/terminal tools → real test
   run → verified result + receipts.
-- **Status:** implementation complete; 155/155 regression checks; independent
+- **Status:** implementation complete; 156/156 regression checks; independent
   non-author review ACCEPT (post-correction final code); awaiting owner
   acceptance. Live paid inference requires the owner to restore
   OmniRoute's STORAGE_ENCRYPTION_KEY or connect an OpenRouter key.

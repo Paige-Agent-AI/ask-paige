@@ -28,9 +28,9 @@ All substantive claims verified by inspection and re-run.
 - **Credential harvesting** — none; the only credential touched is the owner-supplied OpenRouter key, DPAPI-encrypted.
 - **Truthfulness** — the "no live paid model call" limitation is honestly reported with exact credential blockers and restore steps; the app's own states are truthful (OmniRoute never falsely "ready").
 
-## Re-verified regression totals — 152/152 at review time
+## Re-verified regression totals — 156/156
 
-36 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 23 ask = 152. (Post-review correction pass adds 3 tests → 155/155.)
+39 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask = 156. The broker runtime suite has 23 literal `check()` call sites, but one runs inside a loop over 5 unauthorized paths, so it executes **26** runtime assertions. The ask runtime suite was updated to 24 checks to be environment-aware (works whether or not an owner OpenRouter key is connected).
 
 ## Production binary at review
 

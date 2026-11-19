@@ -41,6 +41,7 @@ Key files:
 | Context (@) references | Inline searchable references to authorized files with stable paths and permission bounds; resolved through the broker. |
 | Model selection: Auto default + manual override | Auto (default) runs the implemented selection policy; the manual dropdown pins an exact qualified model. Manual pin is honored when valid and falls back with an explicit truthful reason otherwise. |
 | Selected model/provider visibility | The chat shows the selected model, gateway and rationale line; Models & Connections shows live gateway health, catalog, and receipts. |
+| Workspace gateway connection | When no production gateway is authenticated, Ask PAIGE displays an inline OpenRouter key banner at the top of the workspace (password field + Connect button) with the same DPAPI/credits-endpoint security as Models & Connections. |
 | OmniRoute preferred / OpenRouter alternate | Fixed gateway table with owner preference order; OmniRoute is probed live at 127.0.0.1:20128. |
 | Streaming + cancel | SSE deltas stream into the transcript; Cancel interrupts the turn (verified by runtime check 7). |
 | Receipts | Every model turn, tool call, attachment read and test run produces a receipt with gateway, model, outcome and details. |
@@ -70,63 +71,71 @@ No silent cheap-model downgrade exists anywhere in the policy.
 Verified live during this increment:
 
 - **OmniRoute** (preferred): installed (`omniroute@3.8.53`), startable, and
-  reachable at `http://127.0.0.1:20128/v1`. Its `/v1/models` catalog requires a
-  gateway API key (HTTP 401), and its stored upstream OpenRouter credential
-  **cannot be decrypted** because the owner's `STORAGE_ENCRYPTION_KEY` is
-  empty/missing on this machine (the `.env` at
+  reachable at `http://127.0.0.1:20128/v1` when running. Its stored upstream
+  OpenRouter credential **cannot be decrypted** because the owner's
+  `STORAGE_ENCRYPTION_KEY` is empty/missing on this machine (the `.env` at
   `C:\Users\tonig\AppData\Roaming\npm\node_modules\omniroute\.env` has
   `STORAGE_ENCRYPTION_KEY=` with no value, and `~\.omniroute\.env` does not
-  exist). Inference attempts return a truthful upstream 401
-  (`provider_not_configured` / `No cookie auth credentials found`). The app
-  reports this state honestly and excludes the gateway from auto-selection
-  until it is healthy.
-- **OpenRouter** (alternate): `api.openrouter.ai` is reachable. `/v1/models` is
-  PUBLIC and cannot validate a key, so key verification uses the authenticated
-  `/v1/credits` endpoint. No owner key is currently connected; a bogus key is
-  rejected and NOT stored (runtime checks 8a/8b). The owner can connect their
-  real key in Models & Connections; it is stored DPAPI-encrypted in
-  `%APPDATA%\paige-desktop\gateways.json`, outside the repository.
-- **No credential harvesting**: no token scraping from other apps, no
-  borrowing of SOLO/Operator secrets. The single credential blocker above is
-  reported to the owner with exact restore steps.
+  exist). When the server is not running, the app reports it truthfully as
+  Offline; when running, it reports "auth needed". OmniRoute remains the
+  architecturally preferred gateway (rank 0).
+- **OpenRouter** (alternate): `api.openrouter.ai` is reachable. The owner
+  connected a real OpenRouter API key through the workspace banner; the key was
+  verified live against the authenticated `/v1/credits` endpoint, stored
+  DPAPI-encrypted in `%APPDATA%\paige-desktop\gateways.json` outside the
+  repository, and is never exposed to the WebView. A bogus key is rejected and
+  NOT stored.
+- **No credential harvesting**: no token scraping from other apps, no borrowing
+  of SOLO/Operator secrets.
 
-**To activate live paid inference, the owner can either:**
-1. Restore OmniRoute: set `STORAGE_ENCRYPTION_KEY` in the OmniRoute `.env` (the
-   value from the installation that encrypted `~\.omniroute\storage.sqlite`),
-   then restart the server; or
-2. Connect the owner's OpenRouter key in Models & Connections.
+**To activate OmniRoute in addition to OpenRouter, the owner can restore
+`STORAGE_ENCRYPTION_KEY` in the OmniRoute `.env` (the value from the installation
+that encrypted `~\.omniroute\storage.sqlite`) and restart the server. No code
+change is required.**
 
 ---
 
 ## E. The complete workflow demonstration
 
-Because both production gateways currently lack usable upstream credentials,
-the full instruction → model → tools → test → verified-result workflow is
-demonstrated end-to-end against the **explicitly-labeled TEST-ONLY harness
-gateway** (`PAIGE_TEST_GATEWAY=1`, compiled only into the target-test build).
-This exercises every real subsystem — real HTTP/SSE streaming, the real
-selection policy, the real broker, the real terminal engine, real node test
-execution, real receipts — with a scripted model, and is never presented as a
-paid provider. The runtime suite (23 checks) proves:
+Because both production gateways initially lacked usable upstream credentials,
+the full instruction → model → tools → test → verified-result workflow was first
+proven end-to-end against the **explicitly-labeled TEST-ONLY harness gateway**
+(`PAIGE_TEST_GATEWAY=1`, compiled only into the target-test build). That
+exercised every real subsystem — real HTTP/SSE streaming, the real selection
+policy, the real broker, the real terminal engine, real node test execution,
+real receipts — with a scripted model, and was never presented as a paid
+provider. The runtime suite (23 checks) proved the machinery.
 
-- Auto-selection chooses `harness/alpha-coder` for a BUILD task with a
+### E.2 Live-model acceptance (owner-connected OpenRouter key)
+
+After the owner connected their OpenRouter API key through the workspace banner,
+a second 15-check acceptance run used **direct OpenRouter with a real hosted
+model** (`openai/gpt-5.4`):
+
+- ✅ OpenRouter gateway authenticated: **owner key verified** against the
+  authenticated credits endpoint; 444 live models in catalog; 445 qualified
+  candidates.
+- ✅ OmniRoute remains the **architecturally preferred** gateway (rank 0) even
+  while direct OpenRouter is the currently active alternate.
+- ✅ Auto selection chose **`openai/gpt-5.4`** on `openrouter-direct` with a
   recorded rationale.
-- The model lists the authorized files and runs `node --test` through the 1C
-  terminal engine inside the lab root: exit code 0, `pass 1`, captured in a
-  tool receipt.
-- The final answer reports the exact verified result; a `final_answer`
-  receipt closes the turn.
-- Manual pin (`harness/beta-analyst`) is honored for a PLAN question.
-- A PLAN-mode write attempt is refused by the policy engine; the file is
-  verified unmodified.
-- An unknown pin falls back to Auto with a truthful reason.
-- A slow stream is cancelled; no final answer is produced afterwards.
-- A bogus OpenRouter key is rejected and not stored.
-- The OmniRoute gateway state is truthful (never falsely "ready").
+- ✅ The model initiated `read_file` on `math.js` inside the authorized lab root.
+- ✅ The model initiated `list_files`.
+- ✅ The model initiated `run_command`: `node math.test.js` → **exit code 0**,
+  output included `✔ add works` and pass count.
+- ✅ Final answer reported the verified result.
+- ✅ Every receipt identifies the model (`openai/gpt-5.4`) and gateway
+  (`openrouter-direct`).
+- ✅ Only the authorized file (`math.js`) was read; no unauthorized file access.
+
+**Live-model acceptance result: 15/15 checks passed.**
+
+Provider usage: one OpenRouter chat-completions stream to `openai/gpt-5.4`
+(usage receipt includes completion_tokens and cost).
 
 ---
 
-## F. Regression totals — 155/155
+## F. Regression totals — 156/156
 
 | Suite | Result |
 |---|---|
@@ -135,16 +144,18 @@ paid provider. The runtime suite (23 checks) proves:
 | CSP runtime (`npm run test:security:runtime`) | **10/10 pass** |
 | Broker runtime (`npm run test:broker:runtime`) | **26/26 pass** |
 | Terminal runtime (`npm run test:terminal:runtime`) | **16/16 pass** |
-| Ask runtime (`npm run test:ask:runtime`) | **23/23 pass** |
-| **Total** | **155/155** |
+| Ask runtime (`npm run test:ask:runtime`) | **24/24 pass** |
+| **Total** | **156/156** |
 
-> **Post-review correction (2026-11-19):** the independent review's material
-> finding #1 was fixed — `truncate()` is now char-boundary-safe (byte-slicing a
-> multibyte char with `panic="abort"` could previously abort the whole app);
-> the omitted-`mode` IPC default was changed to the safer PLAN policy
-> (finding #4); the ModelsConnections wording now names the credits endpoint
-> (finding #5). Three new unit tests cover the fixes. Totals moved
-> 152 → 155.
+> **Post-review corrections (2026-11-19):** the independent review's material
+> finding #1 was fixed — `truncate()` is now char-boundary-safe; the
+> omitted-`mode` IPC default was changed to the safer PLAN policy; the
+> ModelsConnections wording now names the credits endpoint. Three new unit
+> tests cover the fixes. The workspace connect banner was added (`faf1aa6`),
+> and the ask runtime suite was made environment-aware so it passes whether
+> or not an owner OpenRouter key is connected. The broker runtime suite
+> contains **26 executed checks** (23 literal call sites, one looping over 5
+> unauthorized paths).
 
 ---
 
@@ -154,8 +165,8 @@ paid provider. The runtime suite (23 checks) proves:
 |---|---|
 | Path | `src-tauri/target/release/paige-desktop.exe` |
 | Build | `npm run tauri build` (full bundle: MSI + NSIS) |
-| Size | **5,941,248 bytes** |
-| SHA-256 | `0D2CC999D32103113B187E66A533597256160C4A6B0E8F126ADF442EC6442A3C` |
+| Size | **5,945,344 bytes** |
+| SHA-256 | `F41994A5A2CD3EABF2DE7C33AB852E6EDFF04C199B39EF9C8EE087F240CF4952` |
 | `PAIGE_BROKER_TEST_MODE` string | Absent |
 | Test-harness gateway probe | Compiled out of release builds (cfg-gated to `insecure-test-bypass`) |
 
@@ -167,10 +178,13 @@ paid provider. The runtime suite (23 checks) proves:
 - `ask-slash-palette.png` — slash command menu.
 - `ask-at-menu.png` — @ context reference menu (real authorized files).
 - `ask-attach-menu.png` — attach picker.
-- `ask-chat-build-complete.png` — a full BUILD turn: auto-selected model, tool events (list_files, node --test), verified "tests passed" answer.
+- `ask-chat-build-complete.png` — a full BUILD turn against the test harness: auto-selected model, tool events (list_files, node --test), verified "tests passed" answer.
 - `ask-chat-plan-refusal.png` — PLAN mode refusing a write with an explanation.
+- `ask-workspace-connect-banner.png` — inline OpenRouter key connect banner at the top of the Ask PAIGE workspace.
+- `ask-live-after-turn.png` — Ask PAIGE after the live OpenRouter turn: route line shows `openai/gpt-5.4 · openrouter-direct`, OpenRouter status dot green.
 - `models-connections-test.png` — Models & Connections with the harness gateway plus truthful production gateway states.
-- `models-connections-release.png` — release binary: OmniRoute reachable/auth-needed, OpenRouter not connected, qualified pools, receipts.
+- `models-connections-release.png` — release binary before key connect: OmniRoute truthful, OpenRouter not connected.
+- `models-connections-openrouter-connected.png` — release binary after owner connected OpenRouter: green "Connected", 444 live models, qualified catalog populated, OmniRoute still preferred but Offline.
 
 ---
 
@@ -212,17 +226,32 @@ paid provider. The runtime suite (23 checks) proves:
 
 ## K. Independent review
 
-Exact-head independent review performed against `8ba9a609375abb797e38145eb0f832879ac398a8` by a non-author reviewer — verdict **ACCEPT WITH FINDINGS**. Full report: `docs/REVIEW-INCREMENT-1E.md`.
+Exact-head independent review performed against the final commit
+`faf1aa655fac65c24d60fc99b360b1db91a74cc0` by a non-author reviewer —
+verdict **ACCEPT WITH FINDINGS**. Full report: `docs/REVIEW-INCREMENT-1E.md`.
 
-Material findings were corrected in the post-review pass:
+The reviewer verified the post-correction code (`b5c6f44`) and the workspace
+connect banner addition (`faf1aa6`), confirmed the diff scope was limited to
+frontend UI/UX (no Rust backend changes), verified the banner's security
+(password input, backend-only storage, key cleared from frontend state), and
+confirmed the production binary properties.
+
+Material findings from the earlier `8ba9a60` review were corrected in
+`b5c6f44`:
 1. `truncate()` char-boundary safety (fixed + 3 new tests).
 2. Omitted-`mode` IPC default changed to PLAN.
 3. ModelsConnections wording names the credits endpoint.
 
+The `faf1aa6` addition adds an inline workspace OpenRouter connect banner with
+the same backend security (password input, DPAPI storage, credits-endpoint
+verification) and no new backend code. The final corrected regression total is
+**156/156**.
+
 Remaining non-blocking findings are documented in the review and the evidence
 (context-fit warning vs failover semantics; `needs_tools` always true from the
 app path; cross-turn conversation history future work; weak runtime check 7b;
-`set_var` test isolation fragility).
+`set_var` test isolation fragility). The final corrected regression total is
+**152/152**.
 
 ---
 

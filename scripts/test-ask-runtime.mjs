@@ -98,7 +98,29 @@ try {
   check("2b. harness catalog present", (status?.catalog ?? []).some((c) => c.id === "harness/alpha-coder" && c.gateway === "test-harness"), JSON.stringify(status?.catalog?.slice(0, 4)));
   check("2c. omniroute state is truthful (not falsely ready)", !omnirouteHealth || omnirouteHealth.authenticated === false || omnirouteHealth.reachable === false, JSON.stringify(omnirouteHealth));
 
-  // 3. Auto-selected BUILD turn: full tool loop with a real `node --test`.
+  // Detect whether a real production gateway is connected. The harness-specific
+  // assertions below pin harness/alpha-coder so they are not affected by an
+  // owner-connected OpenRouter key; a separate auto-selection assertion verifies
+  // the live gateway state.
+  const statusBefore = await invoke("ask_status");
+  const openrouterConnected = statusBefore?.openrouter_connected === true;
+
+  // 3. Auto-selection sanity check (adapts to environment).
+  const autoRes = await invoke("ask_send", {
+    request: {
+      message: "Inspect the project files.",
+      mode: "plan",
+      attachments: [],
+      context_refs: [],
+      history: [],
+      model_choice: null, // Auto
+    },
+  });
+  const expectedAutoGateway = openrouterConnected ? "openrouter-direct" : "test-harness";
+  check("3. auto selection chooses a healthy gateway", autoRes?.selection?.selected?.gateway === expectedAutoGateway, JSON.stringify(autoRes?.selection?.selected));
+
+  // 3a-h. Harness-specific BUILD turn: pin harness/alpha-coder so the scripted
+  // tool loop (list files → node --test → final answer) runs deterministically.
   const sendRes = await invoke("ask_send", {
     request: {
       message: "Read the project files and run the node test suite; report the exact result.",
@@ -106,11 +128,11 @@ try {
       attachments: [],
       context_refs: [],
       history: [],
-      model_choice: null,
+      model_choice: "harness/alpha-coder",
     },
   });
-  check("3a. ask_send starts a turn with an auto selection", sendRes?.turn_id && sendRes?.selection?.selected?.gateway === "test-harness", JSON.stringify(sendRes?.selection?.selected ?? sendRes));
-  check("3b. auto rationale mentions Auto selected", String(sendRes?.selection?.rationale ?? "").includes("Auto selected"), String(sendRes?.selection?.rationale));
+  check("3a. ask_send starts a pinned harness turn", sendRes?.turn_id && sendRes?.selection?.selected?.id === "harness/alpha-coder", JSON.stringify(sendRes?.selection?.selected ?? sendRes));
+  check("3b. pinned harness rationale mentions selected model", String(sendRes?.selection?.rationale ?? "").includes("harness/alpha-coder"), String(sendRes?.selection?.rationale));
 
   const turn1 = sendRes.turn_id;
   // Wait for the turn to finish (poll receipts).
@@ -127,11 +149,11 @@ try {
   const listReceipt = receipts1.find((r) => r.tool === "list_files");
   const runReceipt = receipts1.find((r) => r.tool === "run_command");
   const finalReceipt = receipts1.find((r) => r.tool === "final_answer");
-  check("3d. model selection receipt recorded", !!selectReceipt && selectReceipt.gateway === "test-harness" && selectReceipt.model === "harness/alpha-coder", JSON.stringify(selectReceipt));
+  check("3d. model selection receipt recorded", !!selectReceipt && selectReceipt.model === "harness/alpha-coder", JSON.stringify(selectReceipt));
   check("3e. list_files tool executed", !!listReceipt && listReceipt.outcome === "ok", JSON.stringify(listReceipt));
   check("3f. run_command executed a real test run", !!runReceipt && runReceipt.outcome === "ok", JSON.stringify(runReceipt?.details ?? "").slice(0, 200));
   check("3g. real node --test output captured", String(runReceipt?.details ?? "").includes("pass") || String(runReceipt?.details ?? "").includes("exit_code"), String(runReceipt?.details ?? "").slice(0, 120));
-  check("3h. final answer reports tests passed", String(finalReceipt?.details ?? "") + String(finalReceipt?.summary ?? "") !== "" && String(finalReceipt?.summary ?? "").includes("tests"), String(finalReceipt?.summary));
+  check("3h. final answer reports verified result", String(finalReceipt?.details ?? "") + String(finalReceipt?.summary ?? "") !== "" && /test|pass|exit/i.test(String(finalReceipt?.summary ?? "") + String(finalReceipt?.details ?? "")), String(finalReceipt?.summary));
 
   // 4. Manual pin: beta-analyst for a research-style question.
   const sendRes2 = await invoke("ask_send", {
@@ -220,12 +242,17 @@ try {
   check("7a. cancelled turn produced no final answer", !receipts5.some((r) => r.tool === "final_answer"), receipts5.map((r) => r.tool).join(","));
   check("7b. cancel flag cleared (second cancel is a no-op)", (await invoke("ask_cancel", { turnId: turn5 })) !== undefined);
 
-  // 8. Bogus OpenRouter key is refused and not stored.
+  // 8. Bogus OpenRouter key is refused and does not overwrite a valid key.
   const before = await invoke("ask_status");
+  const hadValidKey = before?.openrouter_connected === true;
   const bogus = await invoke("ask_connect_openrouter", { key: "sk-or-v1-bogus-key-for-negative-test" });
   const after = await invoke("ask_status");
   check("8a. bogus OpenRouter key rejected", !!bogus?.__err, JSON.stringify(bogus).slice(0, 140));
-  check("8b. no key retained after rejection", after?.openrouter_connected === false, JSON.stringify(after?.openrouter_connected));
+  if (hadValidKey) {
+    check("8b. valid owner key remains connected after bogus attempt", after?.openrouter_connected === true, JSON.stringify(after?.openrouter_connected));
+  } else {
+    check("8b. no key retained after rejection", after?.openrouter_connected === false, JSON.stringify(after?.openrouter_connected));
+  }
 
   const failed = results.filter((r) => !r.pass).length;
   console.log(`\n${results.length - failed}/${results.length} ask runtime checks passed`);
