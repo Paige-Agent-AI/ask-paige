@@ -755,10 +755,11 @@ pub fn broker_apply(
         return Err("target path changed between proposal and apply".to_string());
     }
 
-    // Re-check the on-disk checksum.
+    // Re-check the on-disk checksum. Empty expected_sha means "new file" —
+    // the propose flow created the file empty; skip the check.
     let before_bytes = fs::read(&canon).map_err(|e| e.to_string())?;
     let before_sha = sha256_hex(&before_bytes);
-    if before_sha != expected_sha {
+    if !expected_sha.is_empty() && before_sha != expected_sha {
         return Err(format!(
             "file changed since approval (expected {expected_sha}, found {before_sha}); apply aborted"
         ));
