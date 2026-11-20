@@ -64,10 +64,19 @@ PAIGE used her own native model-to-tool capabilities to:
 - Negative: `git_files("C:\Windows")` → "project root is not authorized"
 
 ### 8. Improvements credited to PAIGE
-1. Broker new-file support (`validate_path` handles non-existent files; `broker_propose_write` creates empty file)
-2. `write_file` tool fix for new files (`expected_sha256` empty = skip checksum)
+1. Broker new-file support (`validate_path` handles non-existent files; `broker_propose_write` creates empty file; `broker_apply` accepts empty `expected_sha256` for new files)
+2. `write_file` tool fix for new files
 3. Git tools available to PAIGE (`git_status`, `git_log`, `git_diff`, `git_branches`, `git_create_branch`, `git_create_worktree`, `git_commit`)
 4. Project authority with native backend enforcement
+
+### 9. F1 Review Finding #1 — Fixed
+Independent non-author review found new-file `write_file` fails on first attempt (checksum mismatch at apply). Fixed in `d29628b`:
+- `broker_apply` (broker.rs:762): `if !expected_sha.is_empty() && before_sha != expected_sha` — skips check for new files
+- Verified: `broker_propose_write` returns `proposal_id`, file created empty (0 bytes), apply accepts empty checksum
+
+### 10. Remaining for owner acceptance
+- Independent non-author review (done — PASS WITH MINOR FINDINGS)
+- Final installed app cold-launch demonstration
 
 ### 9. Remaining for owner acceptance
 - Independent non-author review (launching)
