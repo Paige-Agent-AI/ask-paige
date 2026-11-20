@@ -109,12 +109,13 @@ impl ProjectState {
 
     pub fn is_authorized(&self, path: &Path) -> bool {
         let canon = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canon_display = display_path(&canon);
         self.grants
             .values()
             .filter(|g| !g.revoked)
             .any(|g| {
-                let root = PathBuf::from(&g.root);
-                canon == root || canon.starts_with(&root)
+                let root = display_path(&PathBuf::from(&g.root));
+                canon_display == root || canon_display.starts_with(&root)
             })
     }
 
@@ -325,8 +326,9 @@ pub fn git_create_worktree(
     // Validate the worktree path is inside the authorized root.
     if wt_path.exists() {
         let wt_canon = std::fs::canonicalize(&wt_path).map_err(|e| format!("worktree path inaccessible: {e}"))?;
-        let root_canon = cwd.clone();
-        if !wt_canon.starts_with(&root_canon) && wt_canon != root_canon {
+        let root_display = display_path(&cwd);
+        let wt_display = display_path(&wt_canon);
+        if !wt_display.starts_with(&root_display) && wt_display != root_display {
             return Err("worktree path must be inside the authorized project root".to_string());
         }
     } else {
@@ -334,8 +336,9 @@ pub fn git_create_worktree(
         let parent = wt_path.parent().ok_or("invalid worktree path")?;
         let parent_canon = std::fs::canonicalize(parent)
             .map_err(|e| format!("worktree parent inaccessible: {e}"))?;
-        let root_canon = cwd.clone();
-        if !parent_canon.starts_with(&root_canon) && parent_canon != root_canon {
+        let root_display = display_path(&cwd);
+        let parent_display = display_path(&parent_canon);
+        if !parent_display.starts_with(&root_display) && parent_display != root_display {
             return Err("worktree path must be inside the authorized project root".to_string());
         }
     }

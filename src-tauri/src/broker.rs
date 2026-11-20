@@ -68,7 +68,11 @@ fn native_confirm(message: &str, caption: &str) -> bool {
 // Compile-time allowlist of roots the owner may grant. A future model or
 // agent cannot extend this list at runtime: grant_root() rejects anything that
 // is not one of these roots (or a subdirectory of one).
-const ALLOWED_ROOTS: &[&str] = &[r"C:\Users\tonig\paige-desktop-lab"];
+// 1F (ANT-174): the real PAIGE Desktop source repository is owner-authorized.
+const ALLOWED_ROOTS: &[&str] = &[
+    r"C:\Users\tonig\paige-desktop-lab",
+    r"C:\Users\tonig\paige-desktop",
+];
 
 const MAX_FILE_BYTES: usize = 64 * 1024;
 const APPROVAL_TTL_SECS: u64 = 300;

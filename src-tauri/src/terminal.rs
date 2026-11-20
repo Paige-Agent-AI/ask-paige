@@ -70,7 +70,11 @@ fn display_path(p: &Path) -> String {
 
 // Compile-time authorized project roots. A command may only run inside one of
 // these roots (or a subdirectory). An agent cannot extend this list at runtime.
-const ALLOWED_ROOTS: &[&str] = &[r"C:\Users\tonig\paige-desktop-lab"];
+// 1F (ANT-174): the real PAIGE Desktop source repository is owner-authorized.
+const ALLOWED_ROOTS: &[&str] = &[
+    r"C:\Users\tonig\paige-desktop-lab",
+    r"C:\Users\tonig\paige-desktop",
+];
 
 const APPROVAL_TTL_SECS: u64 = 300;
 
