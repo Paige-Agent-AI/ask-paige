@@ -59,11 +59,13 @@ PAIGE used her own native model-to-tool capabilities to:
 
 ### 7. Production binary (final)
 - Path: `%LOCALAPPDATA%\PAIGE Desktop\paige-desktop.exe`
-- SHA-256: `A75631EA95A6E0985380E5376FDACCFD41F4B0FCA49EC1228046100D1AA7D506`
+- SHA-256: `7BBA8ADB46AADE5C73563CDCCA1900AA25EC0B4E2F4940B80D52E0959362509D`
 - Size: 6,269,952 bytes
 - Cold launch: verified — page `tauri://localhost`, no Vite needed, PAIGE's tools respond
 - PAIGE native: git_status, git_branches, git_log, git_diff, read_file, broker_read_file all work
 - Negative: `git_files("C:\Windows")` → "project root is not authorized"
+
+### 8. Final regression totals: **166/166** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
 
 ### 8. Final regression totals: **166/166** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
 
