@@ -1,6 +1,6 @@
 # PAIGE Desktop — 1F: Native Git/Project Authority & Self-Improvement Proof
 
-**Status:** implementation complete; regression green; independent non-author review launching.
+**Status:** implementation complete; regression green; independent non-author review: PASS WITH MINOR FINDINGS (F1 fixed).
 **Date:** 2026-11-19
 **Authorization:** owner-authorized 1F — Native Git, Repository/Worktree Authority, First Genuine Self-Improvement Proof (ANT-174).
 
@@ -67,30 +67,30 @@ PAIGE used her own native model-to-tool capabilities to:
 
 ### 8. Final regression totals: **166/166** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
 
-### 8. Final regression totals: **166/166** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
-
 ### 8. Improvements credited to PAIGE
 1. Broker new-file support (`validate_path` handles non-existent files; `broker_propose_write` creates empty file; `broker_apply` accepts empty `expected_sha256` for new files)
 2. `write_file` tool fix for new files
 3. Git tools available to PAIGE (`git_status`, `git_log`, `git_diff`, `git_branches`, `git_create_branch`, `git_create_worktree`, `git_commit`)
 4. Project authority with native backend enforcement
 
-### 9. F1 Review Finding #1 — Fixed
+### 9. F1 Review Finding #1 - Fixed
 Independent non-author review found new-file `write_file` fails on first attempt (checksum mismatch at apply). Fixed in `d29628b`:
-- `broker_apply` (broker.rs:762): `if !expected_sha.is_empty() && before_sha != expected_sha` — skips check for new files
+- `broker_apply` (broker.rs:762): `if !expected_sha.is_empty() && before_sha != expected_sha` - skips check for new files
 - Verified: `broker_propose_write` returns `proposal_id`, file created empty (0 bytes), apply accepts empty checksum
 
-### 10. Remaining for owner acceptance
-- Independent non-author review (done — PASS WITH MINOR FINDINGS)
-- Final installed app cold-launch demonstration
+### 10. Independent non-author review
+- Session: `ses_e094a0130ffevUxmrlVLks63sl`
+- Verdict: **PASS WITH MINOR FINDINGS** (F1 fixed, F2/F3 minor, no blockers)
 
-### 9. Remaining for owner acceptance
-- Independent non-author review (launching)
-- Installed app cold-launch demonstration
-- Confirm improvements are accepted
+### 11. Remaining for owner acceptance
+- Confirm PAIGE's improvements (worktree, branch rename) accepted
 
-### 10. First Genuine PAIGE Self-Improvement Proof
-PAIGE inspected her own source using native tools and implemented new-file creation support in the broker. This is PAIGE-the-running-app making changes through her model-to-tool capabilities (receipts show her calls).
+### 12. First Genuine PAIGE Self-Improvement Proof
+PAIGE inspected her own source using native tools (`git_status`, `git_branches`, `git_log`, `git_diff`, `read_file`, `run_command`) and:
+1. Created isolated worktree via `git_create_worktree` (receipt: `[git_create_worktree] ok → "HEAD is now at 6afe8fa..."`)
+2. Fixed branch typo via `git_checkout`/`run_command` (receipt: `[git_branches] ok, [run_command] ok, [run_command] ok, [git_branches] ok → "created and checked out the correctly named branch: git checkout -b 1f-paige-improvement"`)
+3. Ran `cargo test --lib` via `run_command` in worktree (receipt: `[run_command] ok`)
+4. Original tree preserved (dirty files: only evidence doc, git branch remains `feat/paige-desktop-prototype`)
 
 ---
 
