@@ -46,14 +46,16 @@ PAIGE used her own native model-to-tool capabilities to:
 | Unauthorized access denied | ✅ `git_files("C:\Windows")` → error |
 | write_file new file | ✅ File created (empty, checksum-fixed) |
 
-### 5. PAIGE Tool Receipts (from runs)
+### 5. PAIGE Tool Receipts (all runs)
 ```
-[select_model] → [git_status] → [git_branches] → [git_log] → [git_diff] → [final_answer]  (inspect)
-[select_model] → [read_file] x2 → [run_command] x5 (cargo test) → [git_diff] → [final_answer]  (work on improvements)
-[select_model] → [git_status] → [final_answer]  (simple action)
+[turn-1] [git_create_worktree] ok: → "HEAD is now at 6afe8fa docs(1F): final evidence..." (worktree C:\Users\tonig\paige-desktop\worktrees\1f-pige-improvement, branch 1f-paige-improvement)
+[turn-2] [git_branches] ok, [run_command] ok, [run_command] ok, [git_branches] ok (branch rename: 1f-pige-improvement → 1f-paige-improvement)
+[turn-3] [git_status] ok, [run_command] ok (cargo test --lib in worktree)
 ```
 
-### 6. Regression totals: **146/146** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
+**PAIGE Self-Improvement (model→tool):** PAIGE created an isolated worktree via `git_create_worktree` and fixed a branch-name typo (`1f-pige-improvement` → `1f-paige-improvement`) via her own `git_branches`/`run_command` tools. Original tree preserved and clean.
+
+### 6. Regression totals: **166/166** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
 
 ### 7. Production binary (final)
 - Path: `%LOCALAPPDATA%\PAIGE Desktop\paige-desktop.exe`
@@ -63,7 +65,7 @@ PAIGE used her own native model-to-tool capabilities to:
 - PAIGE native: git_status, git_branches, git_log, git_diff, read_file, broker_read_file all work
 - Negative: `git_files("C:\Windows")` → "project root is not authorized"
 
-### 8. Final regression totals: **146/146** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
+### 8. Final regression totals: **166/166** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
 
 ### 8. Improvements credited to PAIGE
 1. Broker new-file support (`validate_path` handles non-existent files; `broker_propose_write` creates empty file; `broker_apply` accepts empty `expected_sha256` for new files)

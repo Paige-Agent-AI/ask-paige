@@ -332,8 +332,14 @@ pub fn git_create_worktree(
             return Err("worktree path must be inside the authorized project root".to_string());
         }
     } else {
-        // For new worktrees, validate the parent directory.
+        // For new worktrees: validate the parent directory if it exists,
+        // or create it and validate the resulting canonical path is in root.
         let parent = wt_path.parent().ok_or("invalid worktree path")?;
+        if !parent.exists() {
+            // Create the parent directory inside the root.
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("cannot create worktree parent: {e}"))?;
+        }
         let parent_canon = std::fs::canonicalize(parent)
             .map_err(|e| format!("worktree parent inaccessible: {e}"))?;
         let root_display = display_path(&cwd);
