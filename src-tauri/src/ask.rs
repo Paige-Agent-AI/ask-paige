@@ -683,7 +683,20 @@ pub fn ask_connect_omniroute(key: String) -> Result<AskStatus, String> {
         .timeout(std::time::Duration::from_secs(15))
         .call()
     {
-        Ok(r) => r.status() == 200,
+        Ok(r) => {
+            let status = r.status();
+            if status == 200 {
+                // Defense-in-depth: require a parseable non-empty model list,
+                // not just any 200 response (matches probe_gateways strictness).
+                let body = r.into_string().unwrap_or_default();
+                serde_json::from_str::<serde_json::Value>(&body)
+                    .ok()
+                    .and_then(|v| v.get("data").and_then(|d| d.as_array()).map(|a| !a.is_empty()))
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
         Err(ureq::Error::Status(code, _)) => {
             if code == 401 || code == 403 {
                 return Err("OmniRoute rejected the key; nothing was stored".to_string());

@@ -45,6 +45,7 @@ export function ModelsConnections() {
       setOmniKeyInput("");
     } catch (e) {
       setOmniError(String(e));
+      setOmniKeyInput(""); // clear key from React state even on failure
     } finally {
       setConnectingOmni(false);
     }
