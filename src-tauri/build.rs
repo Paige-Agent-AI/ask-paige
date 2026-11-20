@@ -41,6 +41,21 @@ fn main() {
         "mcp_revoke",
         "mcp_call_tool",
         "mcp_receipts",
+        "project_grant",
+        "project_revoke",
+        "project_list",
+        "project_status",
+        "git_files",
+        "git_log_cmd",
+        "git_diff_cmd",
+        "git_branches_cmd",
+        "git_worktrees_cmd",
+        "git_create_worktree_cmd",
+        "git_remove_worktree_cmd",
+        "git_create_branch_cmd",
+        "git_checkout_cmd",
+        "git_add_cmd",
+        "git_commit_cmd",
     ]);
     let attributes = tauri_build::Attributes::new().app_manifest(app_manifest);
     tauri_build::try_build(attributes).expect("failed to run tauri-build");

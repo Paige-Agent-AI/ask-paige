@@ -100,6 +100,21 @@ const allowed = new Set([
   "allow-mcp-revoke",
   "allow-mcp-call-tool",
   "allow-mcp-receipts",
+  "allow-project-grant",
+  "allow-project-revoke",
+  "allow-project-list",
+  "allow-project-status",
+  "allow-git-files",
+  "allow-git-log-cmd",
+  "allow-git-diff-cmd",
+  "allow-git-branches-cmd",
+  "allow-git-worktrees-cmd",
+  "allow-git-create-worktree-cmd",
+  "allow-git-remove-worktree-cmd",
+  "allow-git-create-branch-cmd",
+  "allow-git-checkout-cmd",
+  "allow-git-add-cmd",
+  "allow-git-commit-cmd",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];

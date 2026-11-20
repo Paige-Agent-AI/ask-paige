@@ -46,6 +46,21 @@
     "allow-mcp-reconnect",
     "allow-mcp-revoke",
     "allow-mcp-call-tool",
-    "allow-mcp-receipts"
+    "allow-mcp-receipts",
+    "allow-project-grant",
+    "allow-project-revoke",
+    "allow-project-list",
+    "allow-project-status",
+    "allow-git-files",
+    "allow-git-log-cmd",
+    "allow-git-diff-cmd",
+    "allow-git-branches-cmd",
+    "allow-git-worktrees-cmd",
+    "allow-git-create-worktree-cmd",
+    "allow-git-remove-worktree-cmd",
+    "allow-git-create-branch-cmd",
+    "allow-git-checkout-cmd",
+    "allow-git-add-cmd",
+    "allow-git-commit-cmd"
   ]
 }

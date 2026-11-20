@@ -607,6 +607,73 @@ fn dispatch_tool(
                 "timed_out": result.timed_out,
             }))
         }
+        "git_status" => {
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            let files = crate::project::git_files(proj, root.to_string())?;
+            Ok(serde_json::json!({ "files": files }))
+        }
+        "git_log" => {
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let limit = args.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            let entries = crate::project::git_log_cmd(proj, root.to_string(), limit)?;
+            Ok(serde_json::json!({ "commits": entries }))
+        }
+        "git_diff" => {
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let staged = args.get("staged").and_then(|s| s.as_bool()).unwrap_or(false);
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            let diffs = crate::project::git_diff_cmd(proj, root.to_string(), staged)?;
+            Ok(serde_json::json!({ "diffs": diffs }))
+        }
+        "git_branches" => {
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            let branches = crate::project::git_branches_cmd(proj, root.to_string())?;
+            Ok(serde_json::json!({ "branches": branches }))
+        }
+        "git_create_branch" => {
+            if mode != "build" {
+                return Err("PLAN mode does not permit branch creation".to_string());
+            }
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let branch = args.get("branch").and_then(|b| b.as_str()).ok_or("missing branch")?;
+            let from = args.get("from").and_then(|f| f.as_str()).map(|s| s.to_string());
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            let result = crate::project::git_create_branch_cmd(proj, root.to_string(), branch.to_string(), from)?;
+            Ok(serde_json::json!({ "result": result }))
+        }
+        "git_create_worktree" => {
+            if mode != "build" {
+                return Err("PLAN mode does not permit worktree creation".to_string());
+            }
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let wt_path = args.get("worktree_path").and_then(|p| p.as_str()).ok_or("missing worktree_path")?;
+            let branch = args.get("branch").and_then(|b| b.as_str()).ok_or("missing branch")?;
+            let create_branch = args.get("create_branch").and_then(|c| c.as_bool()).unwrap_or(true);
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            let result = crate::project::git_create_worktree_cmd(proj, root.to_string(), wt_path.to_string(), branch.to_string(), create_branch)?;
+            Ok(serde_json::json!({ "result": result }))
+        }
+        "git_commit" => {
+            if mode != "build" {
+                return Err("PLAN mode does not permit commits".to_string());
+            }
+            let root = args.get("root").and_then(|r| r.as_str()).ok_or("missing root")?;
+            let message = args.get("message").and_then(|m| m.as_str()).ok_or("missing message")?;
+            let paths: Vec<String> = args
+                .get("paths")
+                .and_then(|p| p.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str()).map(|s| s.to_string()).collect())
+                .unwrap_or_default();
+            let proj = app.state::<Mutex<crate::project::ProjectState>>();
+            if !paths.is_empty() {
+                let _ = crate::project::git_add_cmd(proj.clone(), root.to_string(), paths)?;
+            }
+            let result = crate::project::git_commit_cmd(proj, root.to_string(), message.to_string())?;
+            Ok(serde_json::json!({ "result": result }))
+        }
         other => Err(format!("unknown tool: {other}")),
     }
 }
@@ -932,6 +999,113 @@ fn tool_definitions() -> Vec<serde_json::Value> {
                         "cwd": { "type": "string", "description": "Optional absolute working directory inside the root" }
                     },
                     "required": ["command"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_status",
+                "description": "Get Git status (modified/staged/untracked files) for the authorized project root.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" }
+                    },
+                    "required": ["root"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_log",
+                "description": "Get Git commit history for the authorized project root.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" },
+                        "limit": { "type": "number", "description": "Number of commits to retrieve (default 10)" }
+                    },
+                    "required": ["root"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_diff",
+                "description": "Get Git diff (unstaged or staged) for the authorized project root.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" },
+                        "staged": { "type": "boolean", "description": "Show staged diff (default false = unstaged)" }
+                    },
+                    "required": ["root"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_branches",
+                "description": "List Git branches for the authorized project root.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" }
+                    },
+                    "required": ["root"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_create_branch",
+                "description": "Create a new Git branch in the authorized project root. BUILD mode only.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" },
+                        "branch": { "type": "string", "description": "New branch name" },
+                        "from": { "type": "string", "description": "Optional base branch/commit" }
+                    },
+                    "required": ["root", "branch"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_create_worktree",
+                "description": "Create an isolated Git worktree for safe branch work. BUILD mode only.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" },
+                        "worktree_path": { "type": "string", "description": "Path for the new worktree (must be inside project root)" },
+                        "branch": { "type": "string", "description": "Branch name for the worktree" },
+                        "create_branch": { "type": "boolean", "description": "Create the branch if it doesn't exist" }
+                    },
+                    "required": ["root", "worktree_path", "branch"]
+                }
+            }
+        }),
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "git_commit",
+                "description": "Stage files and commit in the authorized project root. BUILD mode only.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Authorized project root path" },
+                        "message": { "type": "string", "description": "Commit message" },
+                        "paths": { "type": "array", "items": { "type": "string" }, "description": "File paths to stage (relative to root)" }
+                    },
+                    "required": ["root", "message"]
                 }
             }
         }),
