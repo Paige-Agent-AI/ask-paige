@@ -57,11 +57,13 @@ PAIGE used her own native model-to-tool capabilities to:
 
 ### 7. Production binary (final)
 - Path: `%LOCALAPPDATA%\PAIGE Desktop\paige-desktop.exe`
-- SHA-256: `ECCE6925DA4DA19C1181274294DE93D0AE298674E4526F33C2CE1EA0A7ACB922`
+- SHA-256: `A75631EA95A6E0985380E5376FDACCFD41F4B0FCA49EC1228046100D1AA7D506`
 - Size: 6,269,952 bytes
-- Cold launch: verified — page `tauri://localhost`, no Vite needed
+- Cold launch: verified — page `tauri://localhost`, no Vite needed, PAIGE's tools respond
 - PAIGE native: git_status, git_branches, git_log, git_diff, read_file, broker_read_file all work
 - Negative: `git_files("C:\Windows")` → "project root is not authorized"
+
+### 8. Final regression totals: **146/146** (49 Rust + 41 static + 10 CSP + 26 broker + 16 terminal + 24 ask)
 
 ### 8. Improvements credited to PAIGE
 1. Broker new-file support (`validate_path` handles non-existent files; `broker_propose_write` creates empty file; `broker_apply` accepts empty `expected_sha256` for new files)
