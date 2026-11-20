@@ -318,14 +318,26 @@ fn validate_path(root: &Path, input: &str) -> Result<PathBuf, String> {
     }
 
     let canon_root = fs::canonicalize(root).map_err(|e| format!("root inaccessible: {e}"))?;
-    let canon = fs::canonicalize(&candidate)
-        .map_err(|e| format!("path does not exist or is inaccessible: {e}"))?;
+    let canon = match fs::canonicalize(&candidate) {
+        Ok(c) => c,
+        Err(_) => {
+            // File may not exist yet (new file). Canonicalize the parent and
+            // join the filename to validate the path is inside the root.
+            let parent = candidate.parent().ok_or("invalid path")?;
+            let filename = candidate.file_name().ok_or("invalid filename")?;
+            let canon_parent = fs::canonicalize(parent)
+                .map_err(|e| format!("path does not exist or is inaccessible: {e}"))?;
+            canon_parent.join(filename)
+        }
+    };
     if !canon.starts_with(&canon_root) {
         return Err("path resolves outside the authorized root".to_string());
     }
-    let meta = fs::metadata(&canon).map_err(|e| e.to_string())?;
-    if !meta.is_file() {
-        return Err("target is not a regular file".to_string());
+    if canon.exists() {
+        let meta = fs::metadata(&canon).map_err(|e| e.to_string())?;
+        if !meta.is_file() {
+            return Err("target is not a regular file".to_string());
+        }
     }
     Ok(canon)
 }
@@ -573,7 +585,17 @@ pub fn broker_propose_write(
     let root = require_grant(&state.lock().unwrap(), true)?;
     let canon = validate_path(&root, &path)?;
 
-    let meta = fs::metadata(&canon).map_err(|e| e.to_string())?;
+    let meta = match fs::metadata(&canon) {
+        Ok(m) => m,
+        Err(_) => {
+            // New file: create it empty first so the proposal flow works.
+            if let Some(parent) = canon.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            fs::write(&canon, b"").map_err(|e| format!("cannot create new file: {e}"))?;
+            fs::metadata(&canon).map_err(|e| e.to_string())?
+        }
+    };
     if meta.len() as usize > MAX_FILE_BYTES {
         return Err("file exceeds the read size limit".to_string());
     }
@@ -582,7 +604,8 @@ pub fn broker_propose_write(
         return Err("file exceeds the read size limit".to_string());
     }
     let current_sha = sha256_hex(&bytes);
-    if current_sha != expected_sha256 {
+    // Empty expected_sha256 means "new file" — skip the checksum comparison.
+    if !expected_sha256.is_empty() && current_sha != expected_sha256 {
         return Err(format!(
             "expected checksum {expected_sha256} does not match current file {current_sha}; file changed since proposal"
         ));
@@ -885,9 +908,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_file() {
+    fn allows_missing_file_for_creation() {
+        // 1F: validate_path now permits non-existent files (new file creation).
+        // The path must still be inside the root and pass all safety checks.
         let r = tmp_root();
-        assert!(validate_path(&r, "does-not-exist.txt").is_err());
+        assert!(validate_path(&r, "does-not-exist.txt").is_ok());
+        // But traversal is still rejected.
+        assert!(validate_path(&r, "../escape.txt").is_err());
     }
 
     #[test]

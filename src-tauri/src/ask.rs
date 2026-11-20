@@ -536,16 +536,21 @@ fn dispatch_tool(
                 .and_then(|c| c.as_str())
                 .ok_or("missing content")?
                 .to_string();
-            // Broker proposal (checks current checksum of the file).
+            // Try to read existing file for checksum binding; if it doesn't
+            // exist, this is a new file (empty before_sha256).
             let existing = crate::broker::broker_read_file(
                 app.state::<Mutex<BrokerState>>(),
                 path.clone(),
-            )?;
+            );
+            let before_sha = match &existing {
+                Ok(res) => res.sha256.clone(),
+                Err(_) => String::new(), // new file
+            };
             let prop = crate::broker::broker_propose_write(
                 app.state::<Mutex<BrokerState>>(),
                 path.clone(),
                 content.clone(),
-                existing.sha256.clone(),
+                before_sha,
             )?;
             crate::broker::broker_approve(
                 app.state::<Mutex<BrokerState>>(),
