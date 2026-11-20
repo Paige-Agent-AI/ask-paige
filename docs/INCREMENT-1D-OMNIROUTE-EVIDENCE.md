@@ -62,11 +62,15 @@ Files changed:
 | Ask runtime | 24/24 |
 | **Total** | **162/162** |
 
-### 7. Production binary
+### 7. Production binary (final)
 - Path: `%LOCALAPPDATA%\PAIGE Desktop\paige-desktop.exe`
-- SHA-256: `35933155649F293C3E9205D0C125009F11087827F128C67B28B7222E0417DBF4`
-- Size: 6,139,904 bytes
-- Test strings: absent
+- SHA-256: `A8AB728D8A92866F13896F52A97FC7AA0BF5100302851E0D499334C6BC305031`
+- Size: 6,140,416 bytes
+- Test strings: absent (0 occurrences of `PAIGE_MCP_TEST_INSECURE_REMOTE`, `PAIGE_BROKER_TEST_MODE`, `PAIGE_TEST_GATEWAY`, `TEST-ONLY`)
+- Cold launch: verified (embedded app at `tauri://localhost`, no Vite dev server needed)
+- OmniRoute native connection: verified (1,054 models, `openrouter/auto-code` present)
+- Direct OpenRouter fallback: verified (444 models)
+- Negative security: wrong key → 401, empty key → rejected, disconnect works
 
 ### 8. Remaining owner-only blocker
 The `STORAGE_ENCRYPTION_KEY` for OmniRoute's encrypted OpenRouter provider record is lost. The existing encrypted credential cannot be decrypted. To restore upstream OpenRouter authentication through OmniRoute, the owner must either:
