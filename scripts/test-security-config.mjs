@@ -89,6 +89,8 @@ const allowed = new Set([
   "allow-ask-send",
   "allow-ask-cancel",
   "allow-ask-receipts",
+  "allow-ask-connect-omniroute",
+  "allow-ask-disconnect-omniroute",
   "allow-mcp-status",
   "allow-mcp-add-stdio",
   "allow-mcp-add-remote",

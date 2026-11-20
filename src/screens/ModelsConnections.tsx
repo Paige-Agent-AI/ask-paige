@@ -11,6 +11,9 @@ export function ModelsConnections() {
   const mcp = useMcp();
   const [keyInput, setKeyInput] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [omniKeyInput, setOmniKeyInput] = useState("");
+  const [connectingOmni, setConnectingOmni] = useState(false);
+  const [omniError, setOmniError] = useState<string | null>(null);
 
   // MCP add-server form state
   const [mcpTab, setMcpTab] = useState<"stdio" | "remote">("stdio");
@@ -31,6 +34,20 @@ export function ModelsConnections() {
     const ok = await ask.connectOpenrouter(keyInput.trim());
     if (ok) setKeyInput("");
     setConnecting(false);
+  };
+
+  const connectOmni = async () => {
+    if (!omniKeyInput.trim()) return;
+    setConnectingOmni(true);
+    setOmniError(null);
+    try {
+      await ask.connectOmniroute(omniKeyInput.trim());
+      setOmniKeyInput("");
+    } catch (e) {
+      setOmniError(String(e));
+    } finally {
+      setConnectingOmni(false);
+    }
   };
 
   const addMcp = async () => {
@@ -124,6 +141,56 @@ export function ModelsConnections() {
               upstream 401. Restore the owner's STORAGE_ENCRYPTION_KEY in the
               OmniRoute .env to reactivate this gateway.
             </p>
+          )}
+        </Card>
+
+        <Card className="connection-card">
+          <div className="connection-card-header">
+            <h3>OmniRoute Endpoint Key</h3>
+            <span
+              className={
+                omniroute?.authenticated
+                  ? "connection-status connection-status-ready"
+                  : "connection-status connection-status-pending"
+              }
+            >
+              {omniroute?.authenticated ? "Connected" : "Not connected"}
+            </span>
+          </div>
+          <p className="connection-card-desc">
+            PAIGE Desktop authenticates to the local OmniRoute gateway using an
+            owner-created endpoint API key. The key is stored encrypted at rest
+            (Windows DPAPI) outside the repository and never exposed to the page.
+          </p>
+          {omniroute?.authenticated ? (
+            <>
+              <div className="connection-ok">Connected — endpoint key verified against OmniRoute's authenticated /v1/models endpoint and stored DPAPI-encrypted on this machine.</div>
+              <Button variant="secondary" size="sm" onClick={ask.disconnectOmniroute}>
+                Disconnect
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="connection-keyrow">
+                <input
+                  type="password"
+                  className="connection-keyinput"
+                  placeholder="OmniRoute endpoint key"
+                  value={omniKeyInput}
+                  onChange={(e) => setOmniKeyInput(e.target.value)}
+                />
+                <Button variant="primary" size="sm" onClick={connectOmni} disabled={connectingOmni || !omniKeyInput.trim()}>
+                  {connectingOmni ? "Verifying…" : "Connect"}
+                </Button>
+              </div>
+              <p className="connection-card-note">
+                Enter the OmniRoute endpoint API key (created in the OmniRoute
+                dashboard). The key is verified live against OmniRoute's
+                /v1/models endpoint before it is stored.
+              </p>
+              {omniError && <div className="connection-error">{omniError}</div>}
+              {!omniError && connectingOmni && <div className="connection-ok">Verifying the key against OmniRoute…</div>}
+            </>
           )}
         </Card>
 

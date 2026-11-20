@@ -30,6 +30,8 @@ fn main() {
         "ask_send",
         "ask_cancel",
         "ask_receipts",
+        "ask_connect_omniroute",
+        "ask_disconnect_omniroute",
         "mcp_status",
         "mcp_add_stdio",
         "mcp_add_remote",

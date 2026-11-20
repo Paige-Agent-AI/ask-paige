@@ -57,6 +57,8 @@ pub fn run() {
             ask::ask_send,
             ask::ask_cancel,
             ask::ask_receipts,
+            ask::ask_connect_omniroute,
+            ask::ask_disconnect_omniroute,
             mcp::mcp_status,
             mcp::mcp_add_stdio,
             mcp::mcp_add_remote,

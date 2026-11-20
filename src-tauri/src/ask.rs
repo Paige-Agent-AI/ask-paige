@@ -218,6 +218,7 @@ pub fn probe_gateways() -> (Vec<GatewayHealth>, Vec<ModelCandidate>) {
     for (rank, gw) in PRODUCTION_GATEWAYS.iter().enumerate() {
         let key = match gw {
             GatewayId::OpenrouterDirect => cfg.openrouter_key().ok().flatten(),
+            GatewayId::Omniroute => cfg.omniroute_key().ok().flatten(),
             _ => None,
         };
         // For the direct OpenRouter gateway, /v1/models is PUBLIC — a live
@@ -670,6 +671,43 @@ pub fn ask_disconnect_openrouter() -> Result<AskStatus, String> {
 }
 
 #[tauri::command]
+pub fn ask_connect_omniroute(key: String) -> Result<AskStatus, String> {
+    let key = key.trim().to_string();
+    if key.is_empty() {
+        return Err("empty key".to_string());
+    }
+    // Verify the key against OmniRoute's /v1/models endpoint before storing.
+    let url = "http://127.0.0.1:20128/v1/models";
+    let verified = match ureq::get(url)
+        .set("Authorization", &format!("Bearer {key}"))
+        .timeout(std::time::Duration::from_secs(15))
+        .call()
+    {
+        Ok(r) => r.status() == 200,
+        Err(ureq::Error::Status(code, _)) => {
+            if code == 401 || code == 403 {
+                return Err("OmniRoute rejected the key; nothing was stored".to_string());
+            }
+            return Err(format!("OmniRoute returned HTTP {code}"));
+        }
+        Err(e) => return Err(format!("network: {e}")),
+    };
+    if !verified {
+        return Err("OmniRoute rejected the key; nothing was stored".to_string());
+    }
+    let mut cfg = GatewayConfig::load();
+    cfg.set_omniroute_key(&key)?;
+    Ok(ask_status())
+}
+
+#[tauri::command]
+pub fn ask_disconnect_omniroute() -> Result<AskStatus, String> {
+    let mut cfg = GatewayConfig::load();
+    cfg.clear_omniroute_key()?;
+    Ok(ask_status())
+}
+
+#[tauri::command]
 pub fn ask_set_model_selection(
     selection: String,
     manual_pin: Option<String>,
@@ -911,6 +949,7 @@ fn run_turn(
     let gateway = GatewayId::from_key(&model.gateway).ok_or("unknown gateway")?;
     let api_key = match gateway {
         GatewayId::OpenrouterDirect => GatewayConfig::load().openrouter_key().ok().flatten(),
+        GatewayId::Omniroute => GatewayConfig::load().omniroute_key().ok().flatten(),
         _ => None,
     };
 

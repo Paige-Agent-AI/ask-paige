@@ -34,6 +34,8 @@ export interface UseAskResult {
   refresh: () => Promise<void>;
   connectOpenrouter: (key: string) => Promise<boolean>;
   disconnectOpenrouter: () => Promise<void>;
+  connectOmniroute: (key: string) => Promise<void>;
+  disconnectOmniroute: () => Promise<void>;
   setModelSelection: (selection: "auto" | "manual", pin: string | null) => Promise<void>;
 }
 
@@ -196,6 +198,28 @@ export function useAsk(): UseAskResult {
     }
   }, []);
 
+  const connectOmniroute = useCallback(
+    async (key: string) => {
+      try {
+        const s = (await invoke("ask_connect_omniroute", { key })) as AskStatus;
+        setStatus(s);
+      } catch (e) {
+        setError(String(e));
+        throw e;
+      }
+    },
+    [],
+  );
+
+  const disconnectOmniroute = useCallback(async () => {
+    try {
+      const s = (await invoke("ask_disconnect_omniroute")) as AskStatus;
+      setStatus(s);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
   const setModelSelection = useCallback(
     async (sel: "auto" | "manual", pin: string | null) => {
       try {
@@ -221,6 +245,8 @@ export function useAsk(): UseAskResult {
     refresh,
     connectOpenrouter,
     disconnectOpenrouter,
+    connectOmniroute,
+    disconnectOmniroute,
     setModelSelection,
   };
 }

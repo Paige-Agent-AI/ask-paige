@@ -112,6 +112,9 @@ pub struct GatewayConfig {
     /// DPAPI-protected OpenRouter API key (base64 of ciphertext). None if not connected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub openrouter_key_protected: Option<String>,
+    /// DPAPI-protected OmniRoute endpoint API key (base64 of ciphertext). None if not connected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub omniroute_key_protected: Option<String>,
     /// "auto" by default; a manual model pin (gateway-prefixed id) if the owner set one.
     #[serde(default = "default_selection")]
     pub selection: String,
@@ -127,6 +130,7 @@ impl Default for GatewayConfig {
     fn default() -> Self {
         Self {
             openrouter_key_protected: None,
+            omniroute_key_protected: None,
             selection: default_selection(),
             manual_pin: None,
         }
@@ -176,6 +180,33 @@ impl GatewayConfig {
 
     pub fn clear_openrouter_key(&mut self) -> Result<(), String> {
         self.openrouter_key_protected = None;
+        self.save()
+    }
+
+    pub fn omniroute_key(&self) -> Result<Option<String>, String> {
+        match &self.omniroute_key_protected {
+            None => Ok(None),
+            Some(b64) => {
+                let cipher = base64_decode(b64)?;
+                let plain = dpapi_unprotect(&cipher)?;
+                let s = String::from_utf8(plain).map_err(|_| "stored key is not valid UTF-8".to_string())?;
+                Ok(Some(s))
+            }
+        }
+    }
+
+    pub fn set_omniroute_key(&mut self, key: &str) -> Result<(), String> {
+        let key = key.trim().to_string();
+        if key.is_empty() {
+            return Err("empty key".to_string());
+        }
+        let cipher = dpapi_protect(key.as_bytes())?;
+        self.omniroute_key_protected = Some(base64_encode(&cipher));
+        self.save()
+    }
+
+    pub fn clear_omniroute_key(&mut self) -> Result<(), String> {
+        self.omniroute_key_protected = None;
         self.save()
     }
 }
