@@ -151,10 +151,10 @@ const server = http.createServer((req, res) => {
           toolCall(res, `specialist-read-${toolsSeen.length}`, "read_file", {
             path: `continuation-progress-${toolsSeen.length}.txt`,
           });
-        } else if (child && !parsed.tools) {
+        } else if (child) {
           finish(res, "stop", ["The supporting specialist checked seven files."]);
-        } else if (returned && !parsed.tools && instruction.includes('"handle":"test-reviewer"')) {
-          finish(res, "stop", ["The lead reviewed the supporting specialist’s seven verified reads."]);
+        } else if (returned && instruction.includes('"handle":"test-reviewer"')) {
+          finish(res, "stop", ["The lead reviewed the supporting specialist's seven verified reads."]);
         } else {
           finish(res, "stop", ["The specialist context or tool limit was incorrect."]);
         }
@@ -188,6 +188,25 @@ const server = http.createServer((req, res) => {
           ]);
           toolCall(res, `partial-read-${toolsSeen.length}`, "read_file", {
             path: `continuation-progress-${toolsSeen.length + 1}.txt`,
+          });
+        }
+        return;
+      }
+      if (user === "MODE: PLAN.\nVerify the sixteen-round investigation limit.") {
+        if (toolsSeen.length < 16) {
+          toolCall(res, `sixteen-read-${toolsSeen.length}`, "read_file", {
+            path: `continuation-progress-${toolsSeen.length + 1}.txt`,
+          });
+        } else {
+          // Answer-only pass at the 16-round investigation allowance: the
+          // model still requests one more read but writes its genuine partial
+          // findings alongside the call.
+          textChunks(res, [
+            "Partial verified findings from sixteen reads. ",
+            "More files were not checked.",
+          ]);
+          toolCall(res, `sixteen-read-${toolsSeen.length}`, "read_file", {
+            path: "continuation-progress-1.txt",
           });
         }
         return;

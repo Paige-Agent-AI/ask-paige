@@ -19,7 +19,7 @@ await new Promise(resolve => reservation.close(resolve));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 fs.mkdirSync(project);
 fs.mkdirSync(settings);
-for (let index = 1; index <= 10; index++) {
+for (let index = 1; index <= 20; index++) {
   fs.writeFileSync(path.join(project, `continuation-progress-${index}.txt`), `Independent input ${index}.\n`);
 }
 
@@ -284,6 +284,21 @@ try {
   assert.match(specialistChat.messages.at(-1).text, /lead reviewed the supporting specialist/);
   assert.deepEqual(specialistChat.specialists.map(member => member.slug), ["test-reviewer"]);
   console.log("PASS: named specialist inherited the route and pinned project, delegated once, saved seven broker receipts and completed the chat at the round limit.");
+
+  const sixteen = await invoke("ask_send", { request: {
+    chat_id: pinned.id, mode: "plan", model_choice: "test-harness::harness/alpha-coder",
+    message: "Verify the sixteen-round investigation limit.",
+  } });
+  assert.ok(sixteen.value, sixteen.error);
+  const sixteenChat = await waitForPlan(sixteen.value, "the sixteen-round investigation limit");
+  const sixteenReads = sixteenChat.execution.filter(event =>
+    event.kind === "tool" && event.tool === "read_file" && event.turn_id === sixteen.value.turn_id);
+  assert.equal(sixteenReads.length, 16, "the pinned read-only investigation must receive its 16-round allowance");
+  assert.ok(sixteenReads.every(event => event.outcome === "ok"));
+  assert.equal(sixteenChat.execution.at(-1).outcome, "answered_at_limit");
+  assert.match(sixteenChat.messages.at(-1).text, /Partial verified findings from sixteen reads/);
+  assert.match(sixteenChat.messages.at(-1).text, /More files were not checked/);
+  console.log("PASS: the pinned read-only investigation used its full 16-round allowance and kept the model's real partial report at the limit.");
 
   const planned = await until(async () => {
     const started = await invoke("ask_send", { request: {

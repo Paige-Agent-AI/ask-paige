@@ -33,6 +33,12 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 const LEGACY_TOOL_ROUNDS: usize = 8;
+/// Owner-approved (Nov 23, 2026): read-only PLAN-mode investigations pinned to
+/// an authorized project may run up to 16 tool rounds. Ordinary conversations
+/// keep the 8-round default and BUILD mode is unchanged. PLAN blocks every
+/// write by construction, so the higher allowance cannot reach a mutating
+/// path, and the no-progress stall detector still ends ineffective retries.
+const INVESTIGATION_TOOL_ROUNDS: usize = 16;
 const BUILD_ROUNDS_PER_SESSION: usize = 32;
 const ENGINEERING_BATCHES: usize = 3;
 const RESTART_FOR_TESTS: &str = "The approved edit is verified. Restart PAIGE to run the saved tests in this chat.";
@@ -3204,8 +3210,13 @@ fn run_turn(
         None
     };
     let native_test_args = restart_args.as_ref().or(explicit_test_args.as_ref());
-    let rounds_per_session = if engineering.is_some() { BUILD_ROUNDS_PER_SESSION * ENGINEERING_BATCHES }
-        else if checkpoint.is_some() { BUILD_ROUNDS_PER_SESSION } else { LEGACY_TOOL_ROUNDS };
+    // Owner-approved policy: read-only PLAN investigations in a pinned,
+    // authorized project receive the 16-round investigation allowance.
+    let rounds_per_session = rounds_for_session(
+        engineering.is_some(),
+        checkpoint.is_some(),
+        mode == "plan" && request.pinned_workspace.is_some(),
+    );
     let mut progress = ToolProgress::default();
 
     // Plan can close with a tool-free reply after the last tool round. If the
@@ -4010,6 +4021,18 @@ fn run_turn(
     Err(LIMIT_REPLY.into())
 }
 
+fn rounds_for_session(engineering: bool, has_checkpoint: bool, plan_pinned: bool) -> usize {
+    if engineering {
+        BUILD_ROUNDS_PER_SESSION * ENGINEERING_BATCHES
+    } else if has_checkpoint {
+        BUILD_ROUNDS_PER_SESSION
+    } else if plan_pinned {
+        INVESTIGATION_TOOL_ROUNDS
+    } else {
+        LEGACY_TOOL_ROUNDS
+    }
+}
+
 fn model_tool_output(tool: &str, output: &str) -> String {
     const OUTPUT_EDGE_BYTES: usize = 2_000;
     if tool == "run_command" && let Ok(mut result) = serde_json::from_str::<serde_json::Value>(output)
@@ -4613,5 +4636,18 @@ mod tests {
         assert!(req.attachments.is_empty());
         assert!(req.context_refs.is_empty());
         assert!(req.model_choice.is_none());
+    }
+
+    #[test]
+    fn investigation_round_policy_is_read_only_plan_pinned() {
+        // Owner-approved: only read-only PLAN investigations pinned to an
+        // authorized project receive the 16-round allowance.
+        assert_eq!(rounds_for_session(false, false, true), INVESTIGATION_TOOL_ROUNDS);
+        // Ordinary conversations and BUILD-mode turns keep the default.
+        assert_eq!(rounds_for_session(false, false, false), LEGACY_TOOL_ROUNDS);
+        assert_eq!(LEGACY_TOOL_ROUNDS, 8);
+        // Engineering workflows and saved checkpoints keep their own budgets.
+        assert_eq!(rounds_for_session(true, false, true), BUILD_ROUNDS_PER_SESSION * ENGINEERING_BATCHES);
+        assert_eq!(rounds_for_session(false, true, true), BUILD_ROUNDS_PER_SESSION);
     }
 }
