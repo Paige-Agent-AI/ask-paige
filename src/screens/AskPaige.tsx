@@ -407,7 +407,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     const groups = new Map<string, { root: string | null; chats: Chat[] }>();
     for (const chat of filteredChats) {
       const root = chat.project_roots[0] ?? null;
-      const key = root?.replace(/\//g, "\\").replace(/[\\]+$/, "").toLowerCase() ?? "";
+      const key = root ? rootKeyOf(root) : "";
       const existing = groups.get(key);
       if (existing) existing.chats.push(chat);
       else groups.set(key, { root, chats: [chat] });

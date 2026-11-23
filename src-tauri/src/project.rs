@@ -115,7 +115,10 @@ fn save_state(state: &ProjectState, path: &Path) -> Result<(), String> {
     let file = ProjectsFile {
         version: PROJECTS_STORE_VERSION,
         next_id: state.next_id,
-        grants: state.grants.values().cloned().collect(),
+        // Workflow-only entries are session-scoped folders opened inside a
+        // chat. They are deliberately excluded so a restart can never reload
+        // them as fully authorized project roots.
+        grants: state.grants.values().filter(|g| !g.workflow_only).cloned().collect(),
     };
     let json = serde_json::to_vec_pretty(&file)
         .map_err(|e| format!("Could not encode the project list: {e}"))?;
@@ -142,23 +145,37 @@ fn load_state(path: &Path) -> Option<ProjectState> {
     for grant in file.grants {
         grants.insert(grant.id.clone(), grant);
     }
-    Some(ProjectState { grants, next_id: file.next_id })
+    Some(ProjectState { grants, next_id: file.next_id, store_unsupported: false })
 }
 
 pub struct ProjectState {
     grants: HashMap<String, ProjectGrant>,
     next_id: u64,
+    /// Set when an existing projects.json could not be read (unsupported
+    /// version or corrupt content). The original file is preserved and no
+    /// mutation may silently replace it.
+    store_unsupported: bool,
 }
 
 impl ProjectState {
     pub fn new() -> Self {
-        projects_store_path()
-            .ok()
-            .and_then(|path| load_state(&path))
-            .unwrap_or(Self { grants: HashMap::new(), next_id: 1 })
+        let empty = || Self { grants: HashMap::new(), next_id: 1, store_unsupported: false };
+        let path = match projects_store_path() {
+            Ok(path) => path,
+            Err(_) => return empty(),
+        };
+        match load_state(&path) {
+            Some(state) => state,
+            // A present but unreadable store is preserved, never overwritten.
+            None if path.exists() => Self { grants: HashMap::new(), next_id: 1, store_unsupported: true },
+            None => empty(),
+        }
     }
 
     fn persist(&self) -> Result<(), String> {
+        if self.store_unsupported {
+            return Err("The saved project list could not be read and was preserved. Remove projects.json to start a fresh list.".into());
+        }
         save_state(self, &projects_store_path()?)
     }
 
@@ -1059,7 +1076,7 @@ mod tests {
     fn project_store_round_trips_grants() {
         let path = std::env::temp_dir().join("paige-project-store-roundtrip.json");
         let _ = std::fs::remove_file(&path);
-        let mut state = ProjectState { grants: HashMap::new(), next_id: 7 };
+        let mut state = ProjectState { grants: HashMap::new(), next_id: 7, store_unsupported: false };
         state.grants.insert("proj-7".into(), ProjectGrant {
             id: "proj-7".into(), name: "My Project".into(),
             root: "C:\\repo".into(), granted_at: 42, revoked: false, workflow_only: false,
@@ -1083,7 +1100,7 @@ mod tests {
 
     #[test]
     fn project_rename_only_changes_the_display_name() {
-        let mut state = ProjectState { grants: HashMap::new(), next_id: 1 };
+        let mut state = ProjectState { grants: HashMap::new(), next_id: 1, store_unsupported: false };
         state.grants.insert("proj-1".into(), ProjectGrant {
             id: "proj-1".into(), name: "Old Name".into(),
             root: "C:\\repo".into(), granted_at: 1, revoked: false, workflow_only: false,
@@ -1097,7 +1114,7 @@ mod tests {
 
     #[test]
     fn project_remove_deletes_only_the_list_entry() {
-        let mut state = ProjectState { grants: HashMap::new(), next_id: 1 };
+        let mut state = ProjectState { grants: HashMap::new(), next_id: 1, store_unsupported: false };
         state.grants.insert("proj-1".into(), ProjectGrant {
             id: "proj-1".into(), name: "Keep On Disk".into(),
             root: "C:\\repo".into(), granted_at: 1, revoked: false, workflow_only: false,
@@ -1105,5 +1122,39 @@ mod tests {
         state.remove("proj-1").unwrap();
         assert!(!state.grants.contains_key("proj-1"), "the PAIGE list entry is removed");
         assert!(state.remove("proj-1").is_err(), "removing twice is an error");
+    }
+
+    #[test]
+    fn workflow_only_grants_are_never_persisted_as_authorized() {
+        let path = std::env::temp_dir().join("paige-project-store-workflow-only.json");
+        let _ = std::fs::remove_file(&path);
+        let mut state = ProjectState { grants: HashMap::new(), next_id: 2, store_unsupported: false };
+        state.grants.insert("proj-w".into(), ProjectGrant {
+            id: "proj-w".into(), name: "Chat Folder".into(),
+            root: "C:\\chat-opened-folder".into(), granted_at: 1, revoked: false, workflow_only: true,
+        });
+        state.grants.insert("proj-p".into(), ProjectGrant {
+            id: "proj-p".into(), name: "Owner Project".into(),
+            root: "C:\\owner-project".into(), granted_at: 1, revoked: false, workflow_only: false,
+        });
+        save_state(&state, &path).unwrap();
+        let loaded = load_state(&path).expect("store should load");
+        assert!(!loaded.grants.contains_key("proj-w"), "session-scoped chat folders must not be persisted");
+        assert!(loaded.grants.contains_key("proj-p"), "owner-granted projects persist");
+        let chat_root = std::path::Path::new("C:\\chat-opened-folder");
+        assert!(!loaded.is_authorized(chat_root), "a restarted store can never authorize a chat-opened folder");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn an_unreadable_store_is_preserved_by_load() {
+        let path = std::env::temp_dir().join("paige-project-store-unreadable.json");
+        std::fs::write(&path, b"not a projects store at all").unwrap();
+        // Simulate the load path new() takes for a present, unreadable store:
+        // load refuses, and the original bytes stay on disk untouched.
+        assert!(load_state(&path).is_none(), "an unreadable store must not load");
+        let preserved = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(preserved, "not a projects store at all", "the unreadable store is never modified by loading");
+        let _ = std::fs::remove_file(&path);
     }
 }
