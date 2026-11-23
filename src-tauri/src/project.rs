@@ -811,7 +811,13 @@ pub(crate) fn register_open_folder(app: &AppHandle, canonical: &Path, path: &str
     if is_git_root {
         let name = canonical.file_name().unwrap_or_default().to_string_lossy().into_owned();
         let project = app.state::<Mutex<ProjectState>>();
-        register_project(&mut project.lock().unwrap(), name, path.into(), true);
+        let mut state = project.lock().unwrap();
+        // An owner-revoked project stays revoked: re-opening a chat must not
+        // silently re-grant registry authorization.
+        if state.grants.values().any(|g| g.revoked && g.root.eq_ignore_ascii_case(path)) {
+            return;
+        }
+        register_project(&mut state, name, path.into(), true);
     }
 }
 

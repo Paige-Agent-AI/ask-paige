@@ -239,6 +239,16 @@ try {
   assert.match(finished.messages.at(-1).text, /The closing reply used those verified reads/);
   console.log("PASS: eight progressing Plan rounds finished with a tool-free answer.");
 
+  const partial = await sendPlan("Verify the partial report at the tool limit.");
+  const partialChat = await waitForPlan(partial, "a partial report kept at the limit");
+  const partialReads = partialChat.execution.filter(event => event.kind === "tool" && event.tool === "read_file");
+  assert.equal(partialReads.length, 8, "only the eight verified reads may execute");
+  assert.ok(partialReads.every(event => event.outcome === "ok"));
+  assert.equal(partialChat.execution.at(-1).outcome, "answered_at_limit");
+  assert.match(partialChat.messages.at(-1).text, /Partial verified findings from the eight reads/);
+  assert.match(partialChat.messages.at(-1).text, /The ninth file was not checked/);
+  console.log("PASS: a tool call at the limit still returned the model's real partial report instead of the canned reply.");
+
   const pinned = await until(async () => {
     const result = await invoke("chat_pin_workspace", { root: project });
     if (result.error?.startsWith("Could not acquire the active turn lock:")) return null;

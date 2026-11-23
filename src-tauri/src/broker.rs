@@ -394,6 +394,9 @@ fn list_files_recursive(root: &Path, out: &mut Vec<FileEntry>, cur: &Path, depth
             let name = entry.file_name();
             let name_s = name.to_string_lossy();
             if name_s.starts_with('.') { continue; }
+            // Dependency trees are never useful source context and previously
+            // crowded the 1000-file listing cap with thousands of package files.
+            if name_s.eq_ignore_ascii_case("node_modules") { continue; }
             if let Ok(ft) = entry.file_type() {
                 if ft.is_dir() {
                     list_files_recursive(root, out, &path, depth + 1);

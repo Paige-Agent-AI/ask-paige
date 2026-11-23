@@ -172,6 +172,26 @@ const server = http.createServer((req, res) => {
         }
         return;
       }
+      if (user === "MODE: PLAN.\nVerify the partial report at the tool limit.") {
+        if (toolsSeen.length < 8) {
+          toolCall(res, `partial-read-${toolsSeen.length}`, "read_file", {
+            path: `continuation-progress-${toolsSeen.length + 1}.txt`,
+          });
+        } else {
+          // Answer-only pass (the app offers no tools): a misbehaving model
+          // still requests one more read but writes its genuine partial
+          // findings alongside the call. The app must keep the partial text
+          // instead of discarding it behind the canned limit reply.
+          textChunks(res, [
+            "Partial verified findings from the eight reads. ",
+            "The ninth file was not checked.",
+          ]);
+          toolCall(res, `partial-read-${toolsSeen.length}`, "read_file", {
+            path: `continuation-progress-${toolsSeen.length + 1}.txt`,
+          });
+        }
+        return;
+      }
       if (user === "MODE: PLAN.\nVerify the repeated-read stop fixture.") {
         toolCall(res, `repeated-read-${toolsSeen.length}`, "read_file", { path: "continuation-progress-1.txt" });
         return;

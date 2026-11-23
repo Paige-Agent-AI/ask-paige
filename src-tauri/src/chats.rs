@@ -933,12 +933,14 @@ pub fn chat_select(app: AppHandle, id: Option<String>) -> Result<(), String> {
                 .filter(|chat| !chat.archived) {
                 let broker_state = app.state::<Mutex<BrokerState>>();
                 if let Some(root) = chat.project_roots.first() {
-                    broker::select_session_project(&app, broker_state, root, false)?;
+                    let restored = broker::select_session_project(&app, broker_state, root, false)?;
                     // Re-register the pinned git root as a session-scoped
                     // workflow folder so read-only Git tools work on it after a
-                    // restart. Mutating Git commands keep the stricter
-                    // owner-granted boundary; this entry is never persisted.
-                    if let Some(canon) = std::fs::canonicalize(root).ok().filter(|p| p.is_dir()) {
+                    // restart — but only when the broker actually authorized
+                    // the folder for this session. Mutating Git commands keep
+                    // the stricter owner-granted boundary; this entry is never
+                    // persisted and never un-revokes a revoked grant.
+                    if restored && let Some(canon) = std::fs::canonicalize(root).ok().filter(|p| p.is_dir()) {
                         crate::project::register_open_folder(&app, &canon, root);
                     }
                 } else if chat.no_project {

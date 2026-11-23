@@ -1009,7 +1009,26 @@ fn dispatch_tool(
             } else {
                 crate::broker::broker_list_files(state, None)?
             };
-            Ok(serde_json::json!({ "files": list }))
+            let truncated = list.len() >= 1000;
+            let prefix = args.get("prefix").and_then(|p| p.as_str()).unwrap_or("").replace('\\', "/");
+            if prefix.contains("..") {
+                return Err("Use a folder path relative to the project root.".into());
+            }
+            let filter = prefix.trim_end_matches('/').to_string();
+            let files: Vec<crate::broker::FileEntry> = if filter.is_empty() {
+                list
+            } else {
+                list.into_iter().filter(|f| {
+                    let rel = f.rel_path.replace('\\', "/");
+                    rel.starts_with(&format!("{filter}/")) || rel == filter
+                }).collect()
+            };
+            let mut result = serde_json::json!({ "files": files });
+            if truncated {
+                result["truncated"] = serde_json::json!(true);
+                result["note"] = serde_json::json!("The full listing reached the 1000-file cap. Re-run with a prefix like \"docs/\" to list one folder.");
+            }
+            Ok(result)
         }
         "write_file" | CREATE_WORD => {
             if workflow.and_then(|flow| flow.visual.as_ref()).is_some_and(|scope| scope.proposal_only) {
@@ -2800,7 +2819,7 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "read_file",
-                "description": "Read a bounded UTF-8 slice of an authorized project file. Returns the full-file sha256 and size, the slice content and its start_line. For a specific region use start_line. Continue at next_offset_bytes with expected_sha256 until it is null.",
+                "description": "Read a bounded UTF-8 slice of an authorized project file. Returns the full-file sha256 and size, the slice content and its start_line. For a specific region use start_line. Continue at next_offset_bytes with expected_sha256 until it is null. Use paths exactly as they appear in list_files results; if unsure of a path, list the folder with list_files and a prefix instead of guessing.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -2818,8 +2837,13 @@ fn tool_definitions() -> Vec<serde_json::Value> {
             "type": "function",
             "function": {
                 "name": "list_files",
-                "description": "List files in the authorized project root.",
-                "parameters": { "type": "object", "properties": {} }
+                "description": "List files in the authorized project root, or in one folder when prefix is set. Use a prefix like \"docs/\" to narrow a large project. Read paths only from this listing.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prefix": { "type": "string", "description": "Optional folder path relative to the project root, such as \"docs/\"." }
+                    }
+                }
             }
         }),
         serde_json::json!({
@@ -3613,8 +3637,9 @@ fn run_turn(
             let mut args: serde_json::Value = serde_json::from_str(&tc.args_json).unwrap_or_default();
             // A relative cwd notation on Git tools resolves to the pinned
             // project the broker already authorized for this chat. Any other
-            // path must still match the pinned root exactly.
-            if tc.name.starts_with("git_") && let Some(root) = request.pinned_workspace.as_deref() {
+            // path must still match the pinned root exactly. Guard the shape:
+            // streamed tool arguments are not guaranteed to be an object.
+            if tc.name.starts_with("git_") && args.is_object() && let Some(root) = request.pinned_workspace.as_deref() {
                 let requested = args["root"].as_str().unwrap_or("");
                 if requested.is_empty() || requested == "." || requested == "./" {
                     args["root"] = serde_json::json!(root);
