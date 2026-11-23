@@ -230,3 +230,26 @@
   display: flex;
   gap: var(--pd-space-2);
 }
+.files-workspace-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--pd-space-2);
+}
+
+.files-workspace-label {
+  display: grid;
+  gap: var(--pd-space-1);
+  color: var(--pd-text-muted);
+  font-size: var(--pd-text-xs);
+}
+
+.files-workspace-label input {
+  width: min(320px, 58vw);
+  min-height: 32px;
+  padding: var(--pd-space-1) var(--pd-space-2);
+  color: var(--pd-text);
+  background: var(--pd-bg-input);
+  border: 1px solid var(--pd-border-strong);
+  border-radius: var(--pd-radius-sm);
+}

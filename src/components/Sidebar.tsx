@@ -2,26 +2,17 @@ import { useState } from "react";
 import type { SVGProps } from "react";
 import { PaigeCommandMark } from "./brand/PaigeCommandMark";
 import {
-  ActivityIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CpuIcon,
   FolderIcon,
   SettingsIcon,
-  ShieldCheckIcon,
-  TerminalIcon,
-  UsersIcon,
 } from "./Icons";
 import "./Sidebar.css";
 
 export type Screen =
   | "ask"
   | "projects"
-  | "files"
-  | "approvals"
-  | "activity"
-  | "agents"
-  | "terminal"
   | "models"
   | "settings";
 
@@ -32,34 +23,9 @@ const CommandMarkNavIcon = (_props: SVGProps<SVGSVGElement>) => (
 const items: { id: Screen; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
   { id: "ask", label: "Ask PAIGE", icon: CommandMarkNavIcon },
   { id: "projects", label: "Projects", icon: FolderIcon },
-  { id: "files", label: "Files", icon: FileIcon },
-  { id: "approvals", label: "Approvals", icon: ShieldCheckIcon },
-  { id: "activity", label: "Activity", icon: ActivityIcon },
-  { id: "agents", label: "Agent Team", icon: UsersIcon },
-  { id: "terminal", label: "Terminal", icon: TerminalIcon },
   { id: "models", label: "Models & Connections", icon: CpuIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
-
-function FileIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-    </svg>
-  );
-}
 
 export function Sidebar({
   active,
@@ -68,10 +34,10 @@ export function Sidebar({
   active: Screen;
   onChange: (s: Screen) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   return (
-    <nav className={`sidebar ${expanded ? "expanded" : ""}`}>
+    <nav className={`sidebar ${expanded ? "expanded" : ""}`} aria-label="PAIGE Desktop">
       <div className="sidebar-header">
         <div className="sidebar-mark">
           <PaigeCommandMark className="sidebar-command-mark" label="PAIGE" />
@@ -97,6 +63,8 @@ export function Sidebar({
               className={`sidebar-item ${isActive ? "active" : ""}`}
               onClick={() => onChange(item.id)}
               title={item.label}
+              aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
             >
               <span className="sidebar-icon">
                 <Icon />
@@ -107,9 +75,6 @@ export function Sidebar({
         })}
       </div>
 
-      <div className="sidebar-footer">
-        {expanded && <span className="sidebar-version">PAIGE Desktop · 1B-UI</span>}
-      </div>
     </nav>
   );
 }

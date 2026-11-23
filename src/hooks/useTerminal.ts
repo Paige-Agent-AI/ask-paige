@@ -41,63 +41,72 @@ export function useTerminal() {
   const [session, setSession] = useState<TerminalSessionInfo | null>(null);
   const [pendingApproval, setPendingApproval] = useState<ApprovalRequired | null>(null);
   const [busy, setBusy] = useState(false);
-  const unlistenOutput = useRef<UnlistenFn | null>(null);
-  const unlistenExit = useRef<UnlistenFn | null>(null);
+  const ownedSession = useRef<string | null>(null);
+  const earlyEvents = useRef<Array<{ id: string; accept: () => void }> | null>(null);
+  const listenersReady = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
-      const out = await listen<{ session_id: string; stream: string; line: string; timestamp: number }>(
-        "terminal-output",
-        (event) => {
-          if (!mounted) return;
-          const { session_id, stream, line, timestamp } = event.payload;
-          if (session && session.session_id !== session_id) return;
-          setLines((prev) => [...prev, { stream: stream as "stdout" | "stderr", text: line, timestamp }]);
+    const subscriptions: UnlistenFn[] = [];
+    async function subscribe<T extends { session_id: string }>(name: string, accept: (event: T) => void) {
+      const unlisten = await listen<T>(name, ({ payload }) => {
+        if (!mounted) return;
+        if (payload.session_id === ownedSession.current) accept(payload);
+        else earlyEvents.current?.push({ id: payload.session_id, accept: () => accept(payload) });
+      });
+      if (mounted) subscriptions.push(unlisten);
+      else unlisten();
+    }
+    listenersReady.current = Promise.all([
+      subscribe<{ session_id: string; stream: "stdout" | "stderr"; line: string; timestamp: number }>(
+        "terminal-output", ({ stream, line, timestamp }) => {
+          setLines((prev) => [...prev, { stream, text: line, timestamp }]);
         },
-      );
-      const exit = await listen<{ session_id: string; exit_code: number; finished_at: number; status: string }>(
-        "terminal-exit",
-        (event) => {
-          if (!mounted) return;
-          const { session_id, exit_code, status } = event.payload;
-          if (session && session.session_id !== session_id) return;
+      ),
+      subscribe<{ session_id: string; exit_code: number; status: string }>(
+        "terminal-exit", ({ exit_code, status }) => {
           setBusy(false);
-          setSession((prev) =>
-            prev ? { ...prev, status: status === "killed" ? `killed` : `exited:${exit_code}` } : prev,
-          );
+          setSession((prev) => prev ? { ...prev, status: status === "exited" ? `exited:${exit_code}` : status } : prev);
           setLines((prev) => [
-            ...prev,
-            { stream: "system", text: `Process ${status} (exit code ${exit_code})`, timestamp: Date.now() },
+            ...prev, { stream: "system", text: `Process ${status} (exit code ${exit_code})`, timestamp: Date.now() },
           ]);
         },
-      );
-      unlistenOutput.current = out;
-      unlistenExit.current = exit;
-    })();
-
+      ),
+    ]).then(() => {});
+    void listenersReady.current.catch(() => {});
     return () => {
       mounted = false;
-      unlistenOutput.current?.();
-      unlistenExit.current?.();
+      subscriptions.forEach((unlisten) => unlisten());
     };
-  }, [session?.session_id]);
+  }, []);
 
   const addSystemLine = useCallback((text: string) => {
     setLines((prev) => [...prev, { stream: "system", text, timestamp: Date.now() }]);
   }, []);
 
+  const acceptSession = useCallback((result: SessionStarted) => {
+    ownedSession.current = result.session_id;
+    setSession(result);
+    addSystemLine(`Started ${result.command_line} (pid ${result.pid})`);
+    for (const event of earlyEvents.current ?? []) {
+      if (event.id === result.session_id) event.accept();
+    }
+  }, [addSystemLine]);
+
   const execute = useCallback(
     async (command: string, args: string[] = [], cwd?: string) => {
-      if (busy) {
+      if (busy || earlyEvents.current) {
         addSystemLine("A command is already running.");
         return;
       }
+      ownedSession.current = null;
+      earlyEvents.current = [];
       setBusy(true);
       setPendingApproval(null);
       setLines([]);
       try {
+        await listenersReady.current;
         const result = (await invoke("terminal_execute", {
           request: { command, args, cwd },
         })) as TerminalExecuteResult;
@@ -109,22 +118,26 @@ export function useTerminal() {
           return;
         }
 
-        setSession(result);
-        addSystemLine(`Started ${result.command_line} (pid ${result.pid})`);
+        acceptSession(result);
       } catch (err) {
         setBusy(false);
         addSystemLine(`Error: ${String(err)}`);
+      } finally {
+        earlyEvents.current = null;
       }
     },
-    [busy, addSystemLine],
+    [busy, addSystemLine, acceptSession],
   );
 
   const approve = useCallback(
     async (token: string) => {
-      if (busy) return;
+      if (busy || earlyEvents.current) return;
+      ownedSession.current = null;
+      earlyEvents.current = [];
       setBusy(true);
       setPendingApproval(null);
       try {
+        await listenersReady.current;
         const result = (await invoke("terminal_execute_approved", { token })) as TerminalExecuteResult;
         if (result.type === "approval_required") {
           setPendingApproval(result);
@@ -132,14 +145,15 @@ export function useTerminal() {
           addSystemLine(`Approval required: ${result.reason}`);
           return;
         }
-        setSession(result);
-        addSystemLine(`Started ${result.command_line} (pid ${result.pid})`);
+        acceptSession(result);
       } catch (err) {
         setBusy(false);
         addSystemLine(`Error: ${String(err)}`);
+      } finally {
+        earlyEvents.current = null;
       }
     },
-    [busy, addSystemLine],
+    [busy, addSystemLine, acceptSession],
   );
 
   const sendInput = useCallback(

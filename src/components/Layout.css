@@ -19,3 +19,46 @@
   overflow: auto;
   padding: var(--pd-space-5);
 }
+
+.app-conversation { height: 100%; }
+.app-content-work { padding: 0; }
+
+.app-shell-tools {
+  --tool-chrome: #18191e;
+  --tool-paper: #14151a;
+  --tool-surface: #1b1d24;
+  --tool-row: #22242d;
+  --tool-line: #30323d;
+  --tool-edge: #424451;
+  --pd-border: var(--tool-line);
+  --pd-border-strong: var(--tool-edge);
+  --pd-bg-elevated: var(--tool-chrome);
+  --pd-bg-panel: var(--tool-surface);
+  --pd-bg-input: var(--tool-row);
+  --pd-font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--pd-font-sans);
+}
+[data-theme="light"] .app-shell-tools {
+  --tool-chrome: #f0eef5;
+  --tool-paper: #fcfbfe;
+  --tool-surface: #f6f4fa;
+  --tool-row: #eeebf5;
+  --tool-line: #ddd8e8;
+  --tool-edge: #c4bbd3;
+}
+.app-shell-tools .app-main, .app-shell-tools .app-header { background: var(--tool-paper); }
+.app-shell-tools .app-header { min-height: 52px; }
+.app-shell-tools .sidebar.expanded { width: clamp(192px, 17vw, 244px); }
+.app-shell-tools .sidebar-item { height: 34px; gap: 9px; }
+.app-shell-tools .sidebar-item .sidebar-icon > svg { width: 16px; height: 16px; }
+.app-shell-tools .app-content { padding: clamp(16px, 3vw, 36px); }
+@media (min-width: 1150px) {
+  .app-shell-tools .app-header { padding-inline-start: max(36px, calc((100% - 1000px) / 2)); }
+}
+@media (max-width: 720px) {
+  .app-shell-tools .sidebar, .app-shell-tools .sidebar.expanded { width: 60px; }
+  .app-shell-tools .sidebar-item { justify-content: center; padding-inline: 0; }
+  .app-shell-tools .sidebar-label, .app-shell-tools .sidebar-mark-text, .app-shell-tools .sidebar-toggle { display: none; }
+  .app-shell-tools .sidebar-header { justify-content: center; padding-inline: 0; }
+  .app-shell-tools .app-header { padding-inline: 16px; }
+}

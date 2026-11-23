@@ -19,11 +19,11 @@ export function Layout({
   children: ReactNode;
 }) {
   return (
-    <div className="app-shell">
-      <Sidebar active={active} onChange={onNavigate} />
+    <div className={active === "ask" ? "app-shell" : "app-shell app-shell-tools"}>
+      {active !== "ask" && <Sidebar active={active} onChange={onNavigate} />}
       <div className="app-main">
-        <Header title={title} subtitle={subtitle} />
-        <div className="app-content">{children}</div>
+        {active !== "ask" && <Header title={title} subtitle={subtitle} />}
+        <div className={active === "ask" ? "app-content app-content-work" : "app-content"}>{children}</div>
       </div>
     </div>
   );

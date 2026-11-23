@@ -6,6 +6,8 @@ export type BrokerStatus = {
   pending_proposals: number;
   session_id: string;
   allowed_roots: string[];
+  remembered_roots: string[];
+  terminal_available: boolean;
 };
 
 export type FileEntry = {

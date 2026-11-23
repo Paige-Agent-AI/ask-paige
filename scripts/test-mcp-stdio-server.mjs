@@ -4,6 +4,13 @@
 import readline from "node:readline";
 
 const VERSION = "2024-11-05";
+const TEAM_FIXTURE = process.argv.includes("--team-chat");
+const MEMBERS = [
+  { slug: "fixture-research", name: "Fixture Researcher", runtime: "soft" },
+  { slug: "fixture-review", name: "Fixture Reviewer", runtime: "soft" },
+  { slug: "fixture-unavailable", name: "Non-interactive fixture", runtime: "langgraph" },
+];
+let invocation = 0;
 
 const TOOLS = [
   {
@@ -17,6 +24,15 @@ const TOOLS = [
     inputSchema: { type: "object", properties: { a: { type: "number" }, b: { type: "number" } }, required: ["a", "b"] },
   },
 ];
+if (TEAM_FIXTURE) {
+  for (const name of ["list_subagents", "delegate_to_subagent"]) {
+    const inputSchema = name === "delegate_to_subagent" ? {
+      type: "object",
+      properties: { model_route: { type: "object", properties: { gateway: { type: "string" }, model: { type: "string" } } } },
+    } : { type: "object" };
+    TOOLS.push({ name, description: "Local Team Chat test fixture", inputSchema });
+  }
+}
 
 function respond(id, result) {
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\n");
@@ -30,6 +46,15 @@ function handleCall(id, params) {
   } else if (name === "add") {
     const sum = Number(args.a) + Number(args.b);
     respond(id, { content: [{ type: "text", text: String(sum) }] });
+  } else if (TEAM_FIXTURE && name === "list_subagents") {
+    respond(id, { content: [{ type: "text", text: JSON.stringify({ ok: true, matches: MEMBERS }) }] });
+  } else if (TEAM_FIXTURE && name === "delegate_to_subagent" && MEMBERS.some((member) => member.slug === args.slug && member.runtime === "soft")) {
+    respond(id, { content: [{ type: "text", text: JSON.stringify({
+      ok: true, subagent: args.slug, runtime: "soft",
+      invocation_id: `fixture-invocation-${++invocation}`,
+      model_route: args.model_route,
+      result: { ok: true, answer: `Fixture reply from ${args.slug} for ${args.input?.message}` },
+    }) }] });
   } else {
     respond(id, { content: [{ type: "text", text: `unknown tool: ${name}` }], isError: true });
   }

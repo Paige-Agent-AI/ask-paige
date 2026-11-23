@@ -76,6 +76,11 @@ const ALLOWED_ROOTS: &[&str] = &[
     r"C:\Users\tonig\paige-desktop",
 ];
 
+pub(crate) fn workspace_supported(root: &Path) -> bool {
+    ALLOWED_ROOTS.iter().filter_map(|path| std::fs::canonicalize(path).ok())
+        .any(|allowed| root.starts_with(allowed))
+}
+
 const APPROVAL_TTL_SECS: u64 = 300;
 
 // ---------------------------------------------------------------------------
@@ -246,14 +251,16 @@ pub fn resolve_executable(name: &str) -> Result<PathBuf, String> {
     let exts: Vec<&str> = pathext.split(';').filter(|e| !e.is_empty()).collect();
 
     let base = name.to_lowercase();
+    let explicit_extension = Path::new(name).extension().is_some();
     for dir in path_var.split(';') {
         if dir.is_empty() {
             continue;
         }
         let d = PathBuf::from(dir);
-        // First try exact name (e.g. already has extension).
+        // Windows Node installs an extensionless Unix shim next to npm.cmd.
+        // Let PATHEXT choose a Windows launcher for a bare command name.
         let exact = d.join(name);
-        if exact.is_file() {
+        if (!cfg!(windows) || explicit_extension) && exact.is_file() {
             return Ok(exact);
         }
         for ext in &exts {
@@ -634,6 +641,18 @@ pub fn run_to_completion(
     cwd: Option<&str>,
     approved: bool,
 ) -> Result<SyncRunResult, String> {
+    let workdir = resolve_cwd(state, cwd)?;
+    run_to_completion_at(command, args, &workdir, approved)
+}
+
+/// Ask PAIGE checks the broker root and obtains native confirmation before calling this.
+pub(crate) const SPAWN_FAILED: &str = "failed to spawn process: ";
+
+pub(crate) fn run_confirmed_workflow_test(command: &str, args: &[String], workdir: &Path) -> Result<SyncRunResult, String> {
+    run_to_completion_at(command, args, workdir, false)
+}
+
+fn run_to_completion_at(command: &str, args: &[String], workdir: &Path, approved: bool) -> Result<SyncRunResult, String> {
     let command = command.trim().to_string();
     let risk = classify_command(&command, args);
     if risk == TerminalRisk::Privileged && !approved {
@@ -641,7 +660,6 @@ pub fn run_to_completion(
     }
     let resolved_exe = resolve_executable(&command)?;
     let command_line = format_command_line(&command, args);
-    let workdir = resolve_cwd(state, cwd)?;
 
     let mut cmd = Command::new(&resolved_exe);
     cmd.args(args)
@@ -650,7 +668,7 @@ pub fn run_to_completion(
         .stderr(Stdio::piped())
         .stdin(Stdio::null());
 
-    let mut child = cmd.spawn().map_err(|e| format!("failed to spawn process: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("{SPAWN_FAILED}{e}"))?;
     let pid = child.id();
     let mut stdout_pipe = child.stdout.take().ok_or("failed to capture stdout")?;
     let mut stderr_pipe = child.stderr.take().ok_or("failed to capture stderr")?;

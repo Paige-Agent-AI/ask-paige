@@ -1,4 +1,4 @@
-﻿# PAIGE Desktop
+# PAIGE Desktop
 
 Windows-first local execution surface for PAIGE - a governed command center
 where one accountable lead agent coordinates bounded coding, research and
@@ -63,4 +63,49 @@ NEXUS Vibe Studio creative and model routers are out of scope and unchanged.
 
     npm ci
     npm run tauri dev      # requires Rust + MSVC Build Tools
-    npm run tauri build    # produces an unsigned local bundle
+    npm run build:windows   # unsigned Windows x64 installer with verified GitHub MCP
+
+Use the Tauri build command for the standalone installer. A plain Cargo release
+build without Tauri's custom protocol uses the development URL instead of the
+embedded frontend.
+
+## Provider connections
+
+PAIGE's provider presets must support writes when the owner grants credentials
+with write permissions. Scope credentials to the teams or projects PAIGE
+should work in. Supabase's destructive SQL confirmation flow requires MCP
+forms support, which the desktop client still needs.
+
+Use **Models & Connections** to sign in to Linear, Supabase, or GitHub in
+your browser. Linear and Supabase resume saved sign-ins on launch. Supabase
+tools work against the project reference entered during setup. GitHub’s
+official MCP server keeps its token in memory for the app session, and
+PAIGE binds GitHub issue tools to the repository entered during setup.
+
+In Ask PAIGE, inspect Linear and GitHub issues or Supabase schema in Plan
+or Build mode. Use Build mode and confirm the native dialog to submit
+issue changes, SQL queries, or migrations.
+
+## Team Chat
+
+Connect an authorized PAIGE orchestration server in **Models & Connections**.
+In Ask PAIGE, choose **Add specialists** and select two to six available
+specialists. They use the active chat’s model choice, including PAIGE Auto.
+
+The server must expose `list_subagents` and `delegate_to_subagent`. Its delegate input
+schema must advertise `model_route` as an object with string `gateway` and `model`
+fields. Desktop sends the resolved route and records a completed handoff when
+the server returns a matching top-level `model_route` with the invocation.
+Routing metadata contains identifiers only.
+
+Mention a participant by name in the composer menu or type their `@slug`.
+The desktop displays the message and destination in a native confirmation
+dialog before sending each handoff. The transcript shows the actual
+decisions, replies, and dispatch outcomes. Only the current approved text
+is sent. Team members do not receive the entire chat or its local files.
+
+This version supports owner-directed handoffs to specialists the server
+lists as prompt-only. The client rechecks the roster before dispatch. Runtime
+scope is ultimately enforced by the connected server, and a transport failure
+can leave a dispatched outcome unverified. Reopening a chat does not replay
+handoffs.

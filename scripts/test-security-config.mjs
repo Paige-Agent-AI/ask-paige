@@ -61,6 +61,11 @@ const allowed = new Set([
   "core:window:default",
   "core:app:default",
   "allow-greet",
+  "allow-skills-installed",
+  "allow-skills-search",
+  "allow-skills-catalog",
+  "allow-skills-prepare",
+  "allow-skills-install",
   "allow-broker-status",
   "allow-broker-grant-root",
   "allow-broker-revoke",
@@ -87,13 +92,41 @@ const allowed = new Set([
   "allow-ask-disconnect-openrouter",
   "allow-ask-set-model-selection",
   "allow-ask-send",
+  "allow-ask-resume",
+  "allow-ask-end-task",
+  "allow-workflow-accept-artifact",
+  "allow-workflow-read-word",
+  "allow-workflow-read-visual",
+  "allow-chat-read-image",
+  "allow-workflow-compare-visual",
+  "allow-workflow-retry-visual-test",
   "allow-ask-cancel",
+  "allow-ask-open-confirmation",
   "allow-ask-receipts",
   "allow-ask-connect-omniroute",
   "allow-ask-disconnect-omniroute",
+  "allow-chat-list",
+  "allow-chat-search",
+  "allow-chat-new",
+  "allow-chat-select",
+  "allow-chat-pin-workspace",
+  "allow-chat-rename",
+  "allow-chat-archive",
+  "allow-chat-delete",
+  "allow-chat-export",
+  "allow-team-roster",
+  "allow-team-create",
+  "allow-team-name-specialist",
   "allow-mcp-status",
   "allow-mcp-add-stdio",
   "allow-mcp-add-remote",
+  "allow-mcp-linear-oauth",
+  "allow-mcp-supabase-oauth",
+  "allow-mcp-notion-oauth",
+  "allow-mcp-paige-oauth",
+  "allow-mcp-paige-operator-login",
+  "allow-mcp-github-oauth",
+  "allow-mcp-oauth-cancel",
   "allow-mcp-connect",
   "allow-mcp-disconnect",
   "allow-mcp-reconnect",
@@ -101,6 +134,10 @@ const allowed = new Set([
   "allow-mcp-call-tool",
   "allow-mcp-receipts",
   "allow-project-grant",
+  "allow-project-rename",
+  "allow-project-remove",
+  "allow-project-open-folder",
+  "allow-project-pick-folder",
   "allow-project-revoke",
   "allow-project-list",
   "allow-project-status",
@@ -117,6 +154,31 @@ const allowed = new Set([
   "allow-git-commit-cmd",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
+const manifest = read("src-tauri/build.rs");
+const handlers = read("src-tauri/src/lib.rs");
+const chatPermissions = [...allowed].filter((permission) => permission.startsWith("allow-chat-"));
+check("chat capabilities match the native manifest and registered handlers", chatPermissions.every((permission) => {
+  const command = permission.slice("allow-".length).replaceAll("-", "_");
+  return perms.includes(permission) && manifest.includes(`"${command}"`) && handlers.includes(`chats::${command},`);
+}));
+check("chat IPC is limited to the local main window",
+  caps.remote === undefined && caps.local !== false &&
+  JSON.stringify(caps.windows) === '["main"]' && caps.webviews === undefined);
+check("team roster and creation use the local native handlers", ["roster", "create", "name_specialist"].every((name) =>
+  perms.includes(`allow-team-${name.replaceAll("_", "-")}`) && manifest.includes(`"team_${name}"`) &&
+  handlers.includes(`team::team_${name},`)));
+check("Provider OAuth uses local sign-in and cancel commands", [
+  ["mcp_linear_oauth", "mcp"],
+  ["mcp_supabase_oauth", "mcp"],
+  ["mcp_notion_oauth", "mcp"],
+  ["mcp_paige_oauth", "mcp"],
+  ["mcp_paige_operator_login", "provider_oauth"],
+  ["mcp_github_oauth", "mcp"],
+  ["mcp_oauth_cancel", "provider_oauth"],
+].every(([command, module]) =>
+  perms.includes("allow-" + command.replaceAll("_", "-")) &&
+  manifest.includes(`"${command}"`) && handlers.includes(`${module}::${command},`) &&
+  caps.remote === undefined && JSON.stringify(caps.windows) === '["main"]'));
 const forbidden = ["fs", "shell", "http", "opener", "process", "dialog", "notification", "clipboard", "os", "global-shortcut", "deep-link"];
 for (const f of forbidden) {
   // match the plugin permission namespace, not a substring inside a command name

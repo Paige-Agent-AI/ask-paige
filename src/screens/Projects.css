@@ -10,7 +10,7 @@
 
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: var(--pd-space-4);
 }
 
@@ -47,13 +47,6 @@
   word-break: break-all;
 }
 
-.project-card-desc {
-  font-size: var(--pd-text-sm);
-  color: var(--pd-text-muted);
-  margin: 0;
-  flex: 1;
-}
-
 .project-card-footer {
   display: flex;
   align-items: center;
@@ -80,10 +73,18 @@
   color: var(--pd-text-dim);
 }
 
-.project-card-placeholder {
-  opacity: 0.8;
+.project-form { margin-bottom: var(--pd-space-4); }
+.project-form form { display: grid; gap: var(--pd-space-2); }
+.project-form label { font-weight: 600; }
+.project-folder-field { display: flex; gap: var(--pd-space-2); }
+.project-folder-field input { flex: 1; }
+.project-form input {
+  min-width: 0;
+  padding: var(--pd-space-2) var(--pd-space-3);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius);
+  background: var(--pd-bg-input);
+  color: var(--pd-text);
 }
-
-.project-card-placeholder .project-card-header {
-  color: var(--pd-text-dim);
-}
+.project-form-actions { display: flex; gap: var(--pd-space-2); }
+.projects [role="status"]:has(.pd-feedback) { margin-bottom: var(--pd-space-4); }

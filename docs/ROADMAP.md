@@ -2,11 +2,45 @@
 
 **Owner-accepted milestone:** Increment 1C — Scoped Terminal Execution (final reconciliation accepted 2026-11-19).
 
-**Amended sequence (owner, 2026-11-19):** 1C → 1E → 1D → 1F → 1G → 1H.
+**Earlier increment sequence (owner, 2026-11-19):** 1C → 1E → 1D → 1F → 1G → 1H.
 
 This roadmap records owner-authorized and queued outcomes. No outcome is activated for implementation until the owner explicitly selects it.
 
 ---
+
+## Current Desktop acceptance sequence
+
+The owner set this order for the private Windows Desktop. Each milestone needs evidence in the installed app and owner acceptance before the next one proceeds. The earlier increment entries below retain their historical decisions and evidence.
+
+### 1. Dependable engineering and restart recovery
+
+In the installed app with Vite stopped, give PAIGE Auto a plain-English request to fix one real issue in a pinned local Desktop worktree. PAIGE must read the relevant source, propose a targeted diff, wait for the owner's native approval, and report genuine test results from the local broker. Qualify the model route through actual tool execution. If PAIGE cannot proceed safely, she must explain what failed and ask for the specific decision she needs.
+
+**Acceptance.** Interrupt the run after the approved write is verified and before testing. Reopen the same chat, recover from the saved receipt, and run the offline tests without repeating the write or asking the owner to select the same project again. The chat must retain the diff, approval, verified file hash, test command, exit code, and result. The owner should only need to act on approvals and genuine decisions. [ANT-172](https://linear.app/paigeagentai/issue/ANT-172)
+
+### 2. Readable Workbench and chat history
+
+Keep chats on the left, the active conversation and composer in the center, and the Workbench on the right. Show clear inline states for the proposed diff, owner approval, and test outcome. Let the owner open the full diff, files, command output, and receipts from the relevant turn. Keep workflows in the background.
+
+**Acceptance.** Demonstrate two chats with switching, search, rename, archive, and history after a cold restart. Check the complete diff and readable test output at Windows 125% and 150% scaling in light and dark modes. Finish owner acceptance for ANT-172 before starting milestone 3. [ANT-172](https://linear.app/paigeagentai/issue/ANT-172)
+
+### 3. Reusable Engineering workflow
+
+Use the existing PAIGE orchestration, Harness, Trust, broker, and chat receipts for the first reusable workflow. Run one real change in an isolated authorized worktree. Keep the plan, approval, focused tests, independent non-author reviewer handoff, and final owner decision in the same chat.
+
+**Acceptance.** Reopen the installed app and inspect the saved run, full diff, test receipts, and reviewer findings. The owner can decide whether to accept the completed change. [ANT-179](https://linear.app/paigeagentai/issue/ANT-179)
+
+### 4. Visual QA and refinement
+
+Start with an owner-selected screenshot and one bounded UI correction. Attach the source evidence to the chat, route the edit through the existing approval flow, and show a genuine before-and-after comparison from the installed app.
+
+**Acceptance.** Verify the corrected visual behavior and relevant interaction checks before expanding to short video. Broader Windows operations follow a separate owner authorization. [ANT-175](https://linear.app/paigeagentai/issue/ANT-175) · [ANT-173](https://linear.app/paigeagentai/issue/ANT-173)
+
+---
+
+## Chat entry point for Desktop capabilities
+
+An owner can ask for a workflow, enabled skill, or specialist in ordinary chat. Use the conversation intent router for new capabilities before calling the existing executor. Preserve the original request and pinned project, ask inline for a missing input or an ambiguous choice, and record the selected action with its outcome. Manual selection and explicit commands remain available. Choosing a route grants no new access and never substitutes for a native approval. Future automations use the same entry point with an explicit schedule, destination, and approval before activation.
 
 ## Completed
 
@@ -35,7 +69,7 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
 
 ---
 
-## Active
+## Earlier implementation checkpoints
 
 ### 1D — Native MCP Client + Connection Manager
 
@@ -79,7 +113,7 @@ This roadmap records owner-authorized and queued outcomes. No outcome is activat
 
 ---
 
-## Queued (controlling order)
+## Earlier increment queue
 
 ### 1D — Native MCP Client + Connection Manager
 

@@ -5,6 +5,7 @@
 import { spawn, execSync } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -51,9 +52,9 @@ function ensureRemoteCert() {
 // ---------------------------------------------------------------------------
 // Launch app, open CDP page.
 // ---------------------------------------------------------------------------
-// The app window loads the dev page at http://localhost:1420, so Vite must
-// serve it for the app to load and for IPC invoke to be available.
-const vite = spawn("cmd", ["/c", "npm run dev"], { cwd: root, stdio: "ignore" });
+// A custom-protocol build can be tested with its bundled frontend.
+const packaged = process.env.PAIGE_MCP_TEST_PACKAGED === "1";
+const vite = packaged ? null : spawn("cmd", ["/c", "npm run dev"], { cwd: root, stdio: "ignore" });
 const waitVite = async () => {
   for (let i = 0; i < 40; i++) {
     await sleep(500);
@@ -65,13 +66,15 @@ const waitVite = async () => {
   return false;
 };
 
-// Clean persisted MCP config so this run starts from a blank slate.
-const persistedPath = path.join(process.env.APPDATA ?? "", "paige-desktop", "mcp.json");
-fs.rmSync(persistedPath, { force: true });
+// Use a disposable profile. Never delete or inspect the owner's MCP config.
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), "paige-mcp-fixture-"));
+const persistedPath = path.join(profile, "paige-desktop", "mcp.json");
 
 const app = spawn(exe, [], {
   env: {
     ...process.env,
+    APPDATA: profile,
+    WEBVIEW2_USER_DATA_FOLDER: path.join(profile, "webview"),
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}`,
     PAIGE_MCP_TEST_INSECURE_REMOTE: "1",
   },
@@ -110,7 +113,7 @@ async function ensureRemoteServer() {
 }
 
 try {
-  const viteUp = await waitVite();
+  const viteUp = packaged || await waitVite();
   if (!viteUp) console.log("WARN: vite did not come up; app may not load.");
 
   let target = null;
@@ -216,6 +219,26 @@ try {
   const remoteTools = (remoteStatus?.capabilities?.tools ?? []).map((t) => t.name).sort();
   check("2c. remote server discovers echo+add tools", remoteTools.join(",") === "add,echo", remoteTools.join(","));
 
+  const wrongId = REMOTE_ID + "-invalid-key";
+  const badAuth = await invoke("mcp_add_remote", {
+    request: {
+      id: wrongId,
+      name: "Invalid fixture key",
+      url: `https://127.0.0.1:${REMOTE_PORT}/mcp`,
+      auth_header: "Bearer invalid-fixture-key",
+      auto_connect: true,
+    },
+  });
+  const authStatus = await invoke("mcp_status");
+  check("2d. rejected bearer is reported as sign-in needed",
+    String(badAuth?.__err ?? "").includes("HTTP 401") &&
+    authStatus?.servers?.find((server) => server.id === wrongId)?.state === "auth_needed");
+  await invoke("mcp_revoke", { id: wrongId });
+
+  await invoke("mcp_disconnect", { id: REMOTE_ID });
+  const reconnected = await invoke("mcp_connect", { id: REMOTE_ID });
+  check("2e. reconnect establishes a fresh HTTP session", reconnected?.state === "ready");
+
   // --- 3. Execute real tools through the MCP client. ---
   const echoRes = await invoke("mcp_call_tool", { request: { connection_id: STDIO_ID, tool: "echo", arguments: { text: "hello world" } } });
   const echoText = (echoRes?.content ?? []).map((c) => c?.text ?? "").join("");
@@ -242,6 +265,15 @@ try {
   check("4c. stdio receipts are ok", stdioOk, stdioReceipts.map((r) => r.outcome).join(","));
   const remoteOk = remoteReceipts.every((r) => r.outcome === "ok");
   check("4d. remote receipts are ok", remoteOk, remoteReceipts.map((r) => r.outcome).join(","));
+
+  const expired = await invoke("mcp_call_tool", {
+    request: { connection_id: REMOTE_ID, tool: "echo", arguments: { text: "expire fixture session" } },
+  });
+  check("4e. a tool in an expired session fails without being replayed", String(expired?.__err ?? "").includes("MCP session expired"));
+  const recovered = await waitReady(REMOTE_ID);
+  const receiptAfterRecovery = await invoke("mcp_receipts");
+  check("4f. expired session recovers with exactly one failed tool receipt", recovered?.state === "ready" &&
+    receiptAfterRecovery?.filter((receipt) => receipt.connection_id === REMOTE_ID && receipt.outcome === "error").length === 1);
 
   // --- 5. Status shows both servers ready. ---
   const finalStatus = await invoke("mcp_status");
@@ -272,6 +304,8 @@ try {
   try { stdioServer?.kill("SIGTERM"); } catch {}
   try { remoteServer?.kill("SIGTERM"); } catch {}
   try { execSync(`taskkill /PID ${app.pid} /T /F`, { stdio: "ignore" }); } catch {}
-  try { execSync(`taskkill /F /IM vite.exe /T 2>&1 | Out-Null`, { stdio: "ignore" }); } catch {}
+  if (vite?.pid) {
+    try { execSync(`taskkill /PID ${vite.pid} /T /F`, { stdio: "ignore" }); } catch {}
+  }
   process.exit(exitCode);
 }

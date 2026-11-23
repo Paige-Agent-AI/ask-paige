@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:windows": "node scripts/prepare-github-mcp.mjs && tauri build --bundles nsis --features tauri/custom-protocol --config src-tauri/tauri.windows-release.conf.json",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "node scripts/test-security-config.mjs",
@@ -14,19 +15,21 @@
     "test:broker:runtime": "node scripts/test-broker-runtime.mjs",
     "test:terminal:runtime": "node scripts/test-terminal-runtime.mjs",
     "test:ask:runtime": "node scripts/test-ask-runtime.mjs",
+    "test:continuation:runtime": "node scripts/test-coding-continuation.mjs",
     "test:mcp:runtime": "node scripts/test-mcp-runtime.mjs"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@tauri-apps/api": "^2"
+    "react-markdown": "10.1.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16",
-    "@tauri-apps/cli": "^2"
+    "vite": "^8.0.16"
   }
 }

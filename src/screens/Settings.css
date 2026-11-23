@@ -1,62 +1,50 @@
-.settings {
-  max-width: 900px;
-}
-
-.settings-title {
-  display: flex;
-  align-items: center;
-  gap: var(--pd-space-2);
-  font-size: var(--pd-text-lg);
-  font-weight: 600;
-  margin: 0 0 var(--pd-space-5);
-}
-
-.settings-grid {
+.settings { width: min(100%, 1000px); margin-inline: auto; }
+.settings-section {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--pd-space-4);
+  grid-template-columns: minmax(160px, .85fr) minmax(0, 2fr);
+  gap: 10px 30px;
+  padding: 22px 0;
+  border-top: 1px solid var(--pd-border);
 }
-
-.settings-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--pd-space-4);
+.settings-section:first-child { padding-top: 0; border-top: 0; }
+.settings-skill-library { min-width: 0; display: grid; gap: 10px; }
+.settings-skill-discovery {
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius);
+  background: var(--pd-bg-panel);
 }
-
-.settings-card h3 {
-  font-size: var(--pd-text-base);
-  font-weight: 600;
-  color: var(--pd-text);
-  margin: 0;
-}
-
-.settings-card p {
-  font-size: var(--pd-text-sm);
-  color: var(--pd-text-muted);
-  margin: 0;
-}
-
-.settings-row {
+.settings-skill-discovery > summary { cursor: pointer; padding: 11px 14px; font-weight: 650; }
+.settings-section-title h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.settings-section-title p { margin: 5px 0 0; color: var(--pd-text-muted); font-size: var(--pd-text-sm); }
+.settings-row, .settings-skill-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--pd-space-3);
-  padding: var(--pd-space-2) 0;
-  border-top: 1px solid var(--pd-border);
-  font-size: var(--pd-text-sm);
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 11px 14px;
 }
-
-.settings-row:first-of-type {
-  border-top: none;
+.settings-row, .settings-skill-group {
+  background: var(--pd-bg-panel);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius);
+  min-width: 0;
 }
-
-.settings-value {
+.settings-skill-group > h3 {
+  margin: 0;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 650;
   color: var(--pd-text-muted);
-  font-family: var(--pd-font-mono);
-  font-size: var(--pd-text-xs);
-  text-align: right;
+  border-bottom: 1px solid var(--pd-border);
+}
+.settings-skill-row + .settings-skill-row { border-top: 1px solid var(--pd-border); }
+.settings-skill { display: flex; align-items: flex-start; flex: 1 1 160px; min-width: 0; gap: 8px; }
+.settings-skill input { accent-color: var(--pd-accent); }
+.settings-skill small { display: block; color: var(--pd-text-muted); }
+.settings-value { color: var(--pd-text-muted); font-size: var(--pd-text-sm); }
+.settings-themes { display: flex; flex-wrap: wrap; gap: 3px; }
+@media (max-width: 870px) {
+  .settings-section { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 }
 
-.settings-value-pending {
-  color: var(--pd-text-dim);
-}

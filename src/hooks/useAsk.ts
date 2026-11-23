@@ -12,24 +12,33 @@ import type {
   ToolResultEvent,
 } from "../types/ask";
 
+import type { WorkflowRequest } from "../types/chats";
+
 export type AskMode = "plan" | "build";
 
 export interface ComposerState {
   mode: AskMode;
   attachments: string[];
   contextRefs: string[];
-  modelChoice: "auto" | string; // "auto" or a model id
+  workflow?: WorkflowRequest;
+  skillId?: string;
+  specialistHandle?: string;
+  modelChoice: string | null; // "auto", a gateway-qualified model id, or the saved preference
 }
 
 export interface UseAskResult {
   status: AskStatus | null;
   busy: boolean;
   error: string | null;
+  clearError: () => void;
   selection: ModelSelection | null;
-  streamingText: string;
   toolEvents: ChatToolEvent[];
   receipts: AskReceipt[];
-  send: (message: string, composer: ComposerState, history: unknown[]) => Promise<void>;
+  liveActivity: AskReceipt[];
+  settledTurn: string | null;
+  activeTurnId: string | null;
+  send: (message: string, composer: ComposerState, chatId: string | null) => Promise<AskTurnStarted | null>;
+  resume: (chatId: string, workspaceRoot?: string, useOpenrouterFree?: boolean, afterRestart?: boolean) => Promise<AskTurnStarted | null>;
   cancel: () => Promise<void>;
   refresh: () => Promise<void>;
   connectOpenrouter: (key: string) => Promise<boolean>;
@@ -43,12 +52,16 @@ export function useAsk(): UseAskResult {
   const [status, setStatus] = useState<AskStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const clearError = useCallback(() => setError(null), []);
   const [selection, setSelection] = useState<ModelSelection | null>(null);
-  const [streamingText, setStreamingText] = useState("");
   const [toolEvents, setToolEvents] = useState<ChatToolEvent[]>([]);
   const [receipts, setReceipts] = useState<AskReceipt[]>([]);
+  const [liveActivity, setLiveActivity] = useState<AskReceipt[]>([]);
+  const [settledTurn, setSettledTurn] = useState<string | null>(null);
+  const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
   const turnRef = useRef<string | null>(null);
-  const unlisteners = useRef<UnlistenFn[]>([]);
+  const earlyEvents = useRef<Array<(turnId: string) => void> | null>(null);
+  const listenersReady = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -59,111 +72,97 @@ export function useAsk(): UseAskResult {
     }
   }, []);
 
-  const loadReceipts = useCallback(async () => {
-    try {
-      const r = (await invoke("ask_receipts")) as AskReceipt[];
-      setReceipts(r);
-    } catch {
-      /* non-fatal */
+  useEffect(() => {
+    let mounted = true;
+    const subs: UnlistenFn[] = [];
+    async function subscribe<T extends { turn_id: string }>(name: string, accept: (payload: T) => void) {
+      const unsubscribe = await listen<T>(name, ({ payload }) => {
+        if (!mounted) return;
+        if (payload.turn_id === turnRef.current) accept(payload);
+        else earlyEvents.current?.push((turnId) => {
+          if (payload.turn_id === turnId) accept(payload);
+        });
+      });
+      if (mounted) subs.push(unsubscribe);
+      else unsubscribe();
     }
+    const settle = (id: string) => {
+      setSettledTurn(id);
+      setBusy(false);
+      turnRef.current = null;
+      setActiveTurnId(null);
+    };
+    listenersReady.current = Promise.all([
+      subscribe<{ turn_id: string; tool: string }>("ask-tool-start", (payload) => {
+        setToolEvents((prev) => [...prev, { tool: payload.tool, ok: true, summary: "Started", timestamp: Date.now() }]);
+      }),
+      subscribe<ToolResultEvent>("ask-tool-result", (payload) => {
+        setToolEvents((prev) => [...prev, { tool: payload.tool, ok: payload.ok, summary: payload.summary, timestamp: Date.now() }]);
+      }),
+      subscribe<AskReceipt>("ask-activity", (payload) => {
+        setLiveActivity((previous) => [...previous, payload]);
+      }),
+      subscribe<{ turn_id: string }>("ask-done", (payload) => settle(payload.turn_id)),
+      subscribe<{ turn_id: string; message: string; reply_saved?: boolean }>("ask-error", (payload) => {
+        setError(payload.reply_saved ? null : payload.message);
+        settle(payload.turn_id);
+      }),
+    ]).then(() => {});
+    void listenersReady.current.catch(() => {});
+    return () => {
+      mounted = false;
+      subs.forEach((unsubscribe) => unsubscribe());
+    };
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const subs: UnlistenFn[] = [];
-      subs.push(
-        await listen<{ turn_id: string; text: string }>("ask-delta", (event) => {
-          if (!mounted || event.payload.turn_id !== turnRef.current) return;
-          setStreamingText((prev) => prev + event.payload.text);
-        }),
-      );
-      subs.push(
-        await listen<{ turn_id: string; tool: string; call_id: string }>("ask-tool-start", (event) => {
-          if (!mounted || event.payload.turn_id !== turnRef.current) return;
-          setToolEvents((prev) => [
-            ...prev,
-            { tool: event.payload.tool + " …", ok: true, summary: "started", timestamp: Date.now() },
-          ]);
-        }),
-      );
-      subs.push(
-        await listen<ToolResultEvent>("ask-tool-result", (event) => {
-          if (!mounted || event.payload.turn_id !== turnRef.current) return;
-          setToolEvents((prev) => [
-            ...prev,
-            {
-              tool: event.payload.tool,
-              ok: event.payload.ok,
-              summary: event.payload.summary,
-              timestamp: Date.now(),
-            },
-          ]);
-          loadReceipts();
-        }),
-      );
-      subs.push(
-        await listen<{ turn_id: string; selection: ModelSelection }>("ask-model-selected", (event) => {
-          if (!mounted) return;
-          setSelection(event.payload.selection);
-        }),
-      );
-      subs.push(
-        await listen<{ turn_id: string; status: string; text: string }>("ask-done", (event) => {
-          if (!mounted || event.payload.turn_id !== turnRef.current) return;
-          setBusy(false);
-          turnRef.current = null;
-          loadReceipts();
-        }),
-      );
-      subs.push(
-        await listen<{ turn_id: string; message: string }>("ask-error", (event) => {
-          if (!mounted || event.payload.turn_id !== turnRef.current) return;
-          setBusy(false);
-          turnRef.current = null;
-          setError(event.payload.message);
-        }),
-      );
-      unlisteners.current = subs;
-    })();
-    return () => {
-      mounted = false;
-      unlisteners.current.forEach((u) => u());
-      unlisteners.current = [];
-    };
-  }, [loadReceipts]);
-
-  useEffect(() => {
     refresh();
-    loadReceipts();
-  }, [refresh, loadReceipts]);
+    void invoke<AskReceipt[]>("ask_receipts").then(setReceipts).catch(() => {});
+  }, [refresh]);
 
-  const send = useCallback(
-    async (message: string, composer: ComposerState, history: unknown[]) => {
-      if (busy) return;
+  const start = useCallback(
+    async (invokeTurn: () => Promise<AskTurnStarted>): Promise<AskTurnStarted | null> => {
+      if (turnRef.current || earlyEvents.current) return null;
+      earlyEvents.current = [];
       setBusy(true);
       setError(null);
-      setStreamingText("");
+      setSettledTurn(null);
       setToolEvents([]);
+      setLiveActivity([]);
       try {
-        const started = (await invoke("ask_send", {
-          request: {
-            message,
-            mode: composer.mode,
-            attachments: composer.attachments.map((path) => ({ path })),
-            context_refs: composer.contextRefs,
-            history,
-            model_choice: composer.modelChoice === "auto" ? null : composer.modelChoice,
-          },
-        })) as AskTurnStarted;
+        await listenersReady.current;
+        const started = await invokeTurn();
         turnRef.current = started.turn_id;
+        setActiveTurnId(started.turn_id);
         setSelection(started.selection);
+        earlyEvents.current.forEach((replay) => replay(started.turn_id));
+        return started;
       } catch (e) {
         setBusy(false);
         setError(String(e));
+        return null;
+      } finally {
+        earlyEvents.current = null;
       }
     },
-    [busy],
+    [],
+  );
+
+  const send = useCallback(
+    (message: string, composer: ComposerState, chatId: string | null) => start(() => invoke<AskTurnStarted>("ask_send", {
+      request: {
+        message, mode: composer.mode, attachments: composer.attachments.map((path) => ({ path })),
+        context_refs: composer.contextRefs, chat_id: chatId, persist_chat: true, model_choice: composer.modelChoice,
+        workflow: composer.workflow, skill_id: composer.skillId, specialist_handle: composer.specialistHandle,
+      },
+    })),
+    [start],
+  );
+
+  const resume = useCallback(
+    (chatId: string, workspaceRoot?: string, useOpenrouterFree?: boolean, afterRestart?: boolean) => start(() =>
+      invoke<AskTurnStarted>("ask_resume", { chatId, workspaceRoot, useOpenrouterFree, afterRestart })),
+    [start],
   );
 
   const cancel = useCallback(async () => {
@@ -224,23 +223,27 @@ export function useAsk(): UseAskResult {
     async (sel: "auto" | "manual", pin: string | null) => {
       try {
         await invoke("ask_set_model_selection", { selection: sel, manualPin: pin });
-        await refresh();
+        setStatus((current) => current && { ...current, selection: sel, manual_pin: pin });
       } catch (e) {
         setError(String(e));
       }
     },
-    [refresh],
+    [],
   );
 
   return {
     status,
     busy,
     error,
+    clearError,
     selection,
-    streamingText,
     toolEvents,
     receipts,
+    liveActivity,
+    settledTurn,
+    activeTurnId,
     send,
+    resume,
     cancel,
     refresh,
     connectOpenrouter,

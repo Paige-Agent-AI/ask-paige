@@ -41,6 +41,7 @@ export interface AskReceipt {
   summary: string;
   outcome: string;
   details: string;
+  actor: string; // "human" | "agent" | "unknown"
 }
 
 export interface ToolResultEvent {
@@ -54,6 +55,7 @@ export interface ToolResultEvent {
 
 export interface AskTurnStarted {
   turn_id: string;
+  chat_id: string | null;
   selection: ModelSelection;
 }
 

@@ -6,18 +6,18 @@ import { FileTextIcon, FolderIcon, LockIcon } from "../components/Icons";
 import { useBroker } from "../hooks/useBroker";
 import "./Files.css";
 
-export function Files() {
-  const broker = useBroker();
+export function Files({ workspaceRoot }: { workspaceRoot: string }) {
+  const broker = useBroker(workspaceRoot);
   const [draft, setDraft] = useState("");
   const [hasProposal, setHasProposal] = useState(false);
   const [token, setToken] = useState("");
   const [approved, setApproved] = useState(false);
 
   useEffect(() => {
-    if (broker.status?.granted && broker.files.length === 0) {
+    if (broker.status?.read && broker.status.root === workspaceRoot) {
       broker.listFiles();
     }
-  }, [broker.status?.granted]);
+  }, [broker.status?.root]);
 
   useEffect(() => {
     if (broker.selectedFile) {
@@ -32,8 +32,12 @@ export function Files() {
   const selected = broker.selectedFile;
 
   async function handlePropose() {
-    if (!selected || !canWrite) return;
-    const p = await broker.proposeWrite(selected.path.split("\\").pop() ?? "", draft, selected.sha256);
+    const root = broker.status?.root;
+    if (!selected || !root || !canWrite) return;
+    const prefix = root.replace(/[\\/]+$/, "") + "\\";
+    if (!selected.path.toLowerCase().startsWith(prefix.toLowerCase())) return;
+    if (root !== workspaceRoot) return;
+    const p = await broker.proposeWrite(selected.path.slice(prefix.length), draft, selected.sha256);
     if (p) {
       setHasProposal(true);
       setApproved(false);
@@ -86,12 +90,6 @@ export function Files() {
           )}
         </div>
         <div className="files-actions">
-          <Button variant="secondary" onClick={broker.grant} disabled={broker.busy}>
-            Grant Access
-          </Button>
-          <Button variant="ghost" onClick={broker.revoke} disabled={broker.busy || !broker.status?.granted}>
-            Revoke
-          </Button>
           <Button variant="secondary" onClick={broker.listFiles} disabled={broker.busy || !broker.status?.granted}>
             Refresh
           </Button>
@@ -106,7 +104,7 @@ export function Files() {
             <FolderIcon /> Files
           </h3>
           {broker.files.length === 0 ? (
-            <p className="files-empty">Grant access and refresh to list files.</p>
+            <p className="files-empty">No files listed. Refresh to check the project.</p>
           ) : (
             <ul className="files-list">
               {broker.files.map((f) => (

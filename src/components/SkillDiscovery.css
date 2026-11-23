@@ -1,0 +1,46 @@
+.skill-finder {
+  color: var(--pd-text-primary, inherit);
+  font-size: var(--pd-text-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 12px 14px;
+}
+.skill-finder > p, .skill-finder-preview > p { color: var(--pd-text-muted); margin: 8px 0; }
+.skill-finder-search, .skill-finder-actions, .skill-finder-result-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.skill-finder-actions { justify-content: flex-end; margin-top: 12px; }
+.skill-finder-result-heading { align-items: center; justify-content: space-between; }
+.skill-finder-search label { flex: 1 1 210px; min-width: 0; }
+.skill-finder-search label > span { display: block; margin-bottom: 5px; }
+.skill-finder-search input { width: 100%; min-width: 0; }
+.skill-finder-results, .skill-finder-file-list { list-style: none; padding: 0; margin: 0; }
+.skill-finder-results > li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--pd-border);
+}
+.skill-finder-results > li > span { flex: 1 1 175px; min-width: 0; }
+.skill-finder small { display: block; color: var(--pd-text-muted); }
+.skill-finder-preview dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 12px; }
+.skill-finder-preview dt { color: var(--pd-text-muted); }
+.skill-finder-preview dd { margin: 0; }
+.skill-finder-preview details { border-top: 1px solid var(--pd-border); padding: 8px 0; }
+.skill-finder-preview summary { cursor: pointer; }
+.skill-finder-preview pre, .skill-finder-file-list {
+  max-height: 210px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+.skill-finder-file-list li { padding: 3px 0; }
+.skill-finder p.skill-finder-error { color: var(--pd-danger, var(--pd-text)); }
+

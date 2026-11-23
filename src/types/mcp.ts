@@ -21,6 +21,8 @@ export interface McpCapabilities {
   prompts: McpPrompt[];
 }
 
+export type OAuthProvider = "linear" | "supabase" | "github" | "notion" | "paige";
+
 export interface McpServerStatus {
   id: string;
   name: string;
@@ -31,6 +33,7 @@ export interface McpServerStatus {
   capabilities: McpCapabilities;
   last_seen_at?: number;
   server_info?: Record<string, unknown>;
+  oauth_provider?: OAuthProvider | null;
 }
 
 export interface McpStatus {

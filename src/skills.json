@@ -1,0 +1,44 @@
+[
+  {
+    "id": "regression-testing",
+    "name": "Regression testing",
+    "description": "Reproduce a bug and verify a focused fix.",
+    "guidance": "Use regression testing: establish a baseline, run the narrowest relevant tests in the authorized project, and report actual exit codes. Distinguish a test you recommend from a test you ran."
+  },
+  {
+    "id": "code-review",
+    "name": "Code review",
+    "description": "Review changes for concrete defects and missing coverage.",
+    "guidance": "Review the available source and diff for correctness, safety, and regressions. Prioritize concrete findings with file and line references and state coverage gaps. Follow the chat mode and all existing permissions."
+  },
+  {
+    "id": "source-verification",
+    "name": "Source verification",
+    "description": "Check claims against available primary evidence.",
+    "guidance": "Verify relevant claims with authorized primary sources. Cite identifiers or links from actual results. Distinguish verified findings from inference and flag unavailable sources."
+  },
+  {
+    "id": "game-ui-ux",
+    "name": "Game UI/UX",
+    "description": "Improve screen hierarchy, fit, keyboard focus, and navigation controls.",
+    "design": true,
+    "source": "https://github.com/gamedev-skills/awesome-gamedev-agent-skills/blob/main/skills/disciplines/game-ui-ux/SKILL.md",
+    "guidance": "Apply Game UI/UX to the existing interface. Put the user's primary action first in reading and focus order. Use the project's containers and tokens to handle narrow windows, long labels and DPI changes. Keep focus visible, contain it inside modal dialogs, and restore it to the trigger on close. Tie status updates to actual app state. Verify with keyboard-only navigation and rendered checks at representative sizes."
+  },
+  {
+    "id": "level-design",
+    "name": "Level Design",
+    "description": "Design clear journeys with landmarks, backtracking, and recovery.",
+    "design": true,
+    "source": "https://github.com/gamedev-skills/awesome-gamedev-agent-skills/blob/main/skills/disciplines/level-design/SKILL.md",
+    "guidance": "Apply Level Design to the user's journey. Map the main path and the decisions, dependencies, and landmarks on it. Make the next action easy to find and let optional branches return to the main path. Show progress with actual saved state. Walk the prototype from a fresh start and from an interrupted step. Verify Back, Cancel, and retry without trapping the user or losing completed work."
+  },
+  {
+    "id": "animate",
+    "name": "Animate",
+    "description": "Design purposeful feedback, timing, and reduced-motion behavior.",
+    "design": true,
+    "source": "https://github.com/emilkowalski/skills/blob/main/skills/animate/SKILL.md",
+    "guidance": "Apply Animate to transitions and feedback. Decide what motion should explain, how often it occurs, and whether immediate feedback serves the user better. Use the existing timing and easing tokens and the simplest available implementation. Keep interaction responsive during interruption and reversal. Verify reduced-motion behavior, keyboard parity, and that motion does not block reading, focus or access."
+  }
+]

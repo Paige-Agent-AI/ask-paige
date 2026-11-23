@@ -46,7 +46,7 @@ function parseCommandLine(line: string): { command: string; args: string[] } {
   return { command: parts[0], args: parts.slice(1) };
 }
 
-export function Terminal() {
+export function Terminal({ workspaceRoot }: { workspaceRoot: string }) {
   const { lines, session, busy, pendingApproval, execute, approve, kill } = useTerminal();
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
@@ -66,17 +66,13 @@ export function Terminal() {
     setHistoryIndex(-1);
     setInput("");
     const { command, args } = parseCommandLine(raw);
-    await execute(command, args);
+    await execute(command, args, workspaceRoot);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (pendingApproval) {
-        approve(pendingApproval.token);
-      } else {
-        runCommand(input);
-      }
+      if (!pendingApproval) runCommand(input);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (history.length === 0) return;
@@ -135,10 +131,11 @@ export function Terminal() {
           <input
             ref={inputRef}
             type="text"
+            aria-label="Terminal command"
             className="terminal-input"
             placeholder={
               pendingApproval
-                ? "Type 'yes' and press Enter to approve, or clear to cancel..."
+                ? "Review the pending command below..."
                 : busy
                 ? "Process running..."
                 : "Enter an allowed command (e.g. cargo --version)..."
@@ -147,18 +144,18 @@ export function Terminal() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={busy && !pendingApproval}
-            autoFocus
           />
-          {pendingApproval && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => approve(pendingApproval.token)}
-            >
-              Approve
-            </Button>
-          )}
+
         </div>
+        {pendingApproval && (
+          <section className="ask-approval-card">
+            <strong>Review terminal command</strong>
+            <code>{pendingApproval.command_line}</code>
+            <Button variant="secondary" size="sm" onClick={() => approve(pendingApproval.token)}>
+              Run this command
+            </Button>
+          </section>
+        )}
       </Card>
 
       <Card className="terminal-info">

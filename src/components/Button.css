@@ -27,12 +27,12 @@
 }
 
 .pd-button-primary {
-  background: var(--pd-accent);
+  background: var(--pd-action);
   color: #fff;
 }
 
 .pd-button-primary:hover:not(:disabled) {
-  background: var(--pd-accent-hover);
+  background: var(--pd-action-hover);
 }
 
 .pd-button-secondary {

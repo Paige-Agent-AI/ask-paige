@@ -57,6 +57,14 @@ impl GatewayId {
     pub fn is_test_only(&self) -> bool {
         matches!(self, GatewayId::TestHarness)
     }
+
+    fn auto_model(&self) -> Option<&'static str> {
+        match self {
+            GatewayId::Omniroute => Some("auto/best-free"),
+            GatewayId::OpenrouterDirect => Some("openrouter/auto"),
+            GatewayId::TestHarness => None,
+        }
+    }
 }
 
 /// Production gateways in owner-declared preference order.
@@ -149,7 +157,8 @@ fn estimate_tokens(bytes: u64) -> u64 {
 /// 3. Gateway preference rank (OmniRoute first, direct OpenRouter alternate).
 /// 4. BUILD mode with tool needs requires `tools == true`.
 /// 5. Context window must fit the conversation + attachments (with 2x headroom).
-/// 6. Highest coding tier wins; among equal tiers prefer larger context.
+/// 6. Prefer the gateway's advertised Auto route when it fits.
+/// 7. Highest coding tier wins among other candidates; prefer larger context on ties.
 ///
 /// The policy is pure and unit-tested. `rationale` explains the decision in
 /// concise owner-readable language.
@@ -171,42 +180,65 @@ pub fn select_model(
 
     // 1. Manual pin.
     if let Some(pin) = manual_pin {
-        if let Some(found) = catalog.iter().find(|c| c.id == pin) {
-            let h = healthy.iter().find(|h| h.gateway == found.gateway);
-            match h {
-                Some(_) => {
-                    return ModelSelection {
-                        selected: Some(found.clone()),
-                        rationale: format!(
-                            "Manual override honored: {} on {} (gateway healthy).",
-                            found.id, found.gateway
-                        ),
-                        manual_pin_honored: true,
-                        considered: catalog.len(),
-                    };
-                }
-                None => {
-                    // Fall through to Auto with an explicit reason.
-                    let fallback = auto_select(task, catalog, &healthy);
-                    let mut sel = fallback;
-                    sel.rationale = format!(
-                        "Manual pin {} is on an unhealthy/unavailable gateway; fell back to Auto. {}",
-                        pin, sel.rationale
-                    );
-                    return sel;
-                }
-            }
-        }
-        let fallback = auto_select(task, catalog, &healthy);
-        let mut sel = fallback;
-        sel.rationale = format!(
-            "Manual pin {} is not in the current qualified catalog; fell back to Auto. {}",
-            pin, sel.rationale
-        );
-        return sel;
+        // An older ID-only preference has no reliable gateway provenance:
+        // the previously selected provider may be missing from today's catalog.
+        let Some((gateway, id)) = pin.split_once("::") else {
+            return ModelSelection {
+                selected: None,
+                rationale: format!("Select a gateway for {pin} again in the model picker, or choose PAIGE Auto."),
+                manual_pin_honored: false,
+                considered: catalog.len(),
+            };
+        };
+        let selected = catalog.iter()
+            .find(|c| c.id == id && c.gateway == gateway && healthy.iter().any(|h| h.gateway == gateway))
+            .cloned();
+        let rationale = match &selected {
+            Some(model) => format!("Manual override honored: {} on {}.", model.id, model.gateway),
+            None => format!("{id} on {gateway} is unavailable. Select another model or PAIGE Auto."),
+        };
+        return ModelSelection {
+            manual_pin_honored: selected.is_some(),
+            selected,
+            rationale,
+            considered: catalog.len(),
+        };
     }
 
     auto_select(task, catalog, &healthy)
+}
+
+pub(crate) const FREE_HANDOFF_ROUTER: &str = "openrouter/free";
+
+pub(crate) fn select_free_handoff_model(
+    task: &AskTask, catalog: &[ModelCandidate], health: &[GatewayHealth],
+) -> Option<ModelSelection> {
+    select_free_tool_model(task, catalog, health,
+        "PAIGE Auto selected OpenRouter Free Models Router for the requested native specialist handoff.")
+}
+
+pub(crate) fn select_free_tool_model(
+    task: &AskTask, catalog: &[ModelCandidate], health: &[GatewayHealth], rationale: &str,
+) -> Option<ModelSelection> {
+    let gateway = GatewayId::OpenrouterDirect.key();
+    if !health.iter().any(|route| route.gateway == gateway && route.reachable && route.authenticated) {
+        return None;
+    }
+    let model = catalog.iter().find(|route| route.gateway == gateway && route.id == FREE_HANDOFF_ROUTER
+        && route.tools && route.context_bytes >= required_context_bytes(task))?;
+    Some(ModelSelection {
+        selected: Some(model.clone()),
+        rationale: rationale.into(),
+        manual_pin_honored: false,
+        considered: catalog.len(),
+    })
+}
+
+fn required_context_bytes(task: &AskTask) -> u64 {
+    task.attachment_bytes
+        .saturating_add(task.message.len() as u64)
+        .saturating_mul(2)
+        .saturating_add(8_192)
 }
 
 fn auto_select(task: &AskTask, catalog: &[ModelCandidate], healthy: &[&GatewayHealth]) -> ModelSelection {
@@ -223,7 +255,7 @@ fn auto_select(task: &AskTask, catalog: &[ModelCandidate], healthy: &[&GatewayHe
     let mut ranked_gateways: Vec<&GatewayHealth> = healthy.to_vec();
     ranked_gateways.sort_by_key(|h| h.rank);
 
-    let needed_bytes = (task.attachment_bytes + task.message.len() as u64) * 2 + 8_192;
+    let needed_bytes = required_context_bytes(task);
 
     let mut best: Option<(&ModelCandidate, &GatewayHealth, String)> = None;
     for gw in &ranked_gateways {
@@ -238,7 +270,20 @@ fn auto_select(task: &AskTask, catalog: &[ModelCandidate], healthy: &[&GatewayHe
                 continue;
             }
         }
-        // 5. Context fit.
+        let auto_model = GatewayId::from_key(&gw.gateway).and_then(|id| id.auto_model());
+        if let Some(route) = candidates.iter().find(|c| {
+            Some(c.id.as_str()) == auto_model && c.context_bytes >= needed_bytes
+        }) {
+            return ModelSelection {
+                selected: Some((*route).clone()),
+                rationale: format!("Auto selected the advertised route {} on {}.", route.id, gw.gateway),
+                manual_pin_honored: false,
+                considered: catalog.len(),
+            };
+        }
+
+        // 5. Context fit. An Auto route outside its context budget can only be
+        // considered under the existing best-effort policy.
         let ctx_fit_empty = !candidates.iter().any(|c| c.context_bytes >= needed_bytes);
         let pool: Vec<&&ModelCandidate> = if ctx_fit_empty {
             candidates.iter().collect()
@@ -331,6 +376,19 @@ mod tests {
     }
 
     #[test]
+    fn explicit_handoff_prefers_only_the_healthy_free_tool_router() {
+        let task = AskTask { mode: "plan".into(), message: "Delegate to a supporting specialist".into(),
+            attachment_bytes: 0, needs_tools: true };
+        let paid = candidate("openrouter/auto", "openrouter-direct", 5, true, 128_000);
+        let free = candidate("openrouter/free", "openrouter-direct", 3, true, 128_000);
+        assert!(select_free_handoff_model(&task, &[paid.clone()], &healthy_all()).is_none());
+        assert!(select_free_handoff_model(&task, &[free.clone()], &[health("openrouter-direct", true, false, 1)]).is_none());
+        let model = select_free_handoff_model(&task, &[paid, free], &healthy_all()).unwrap();
+        assert!(!model.manual_pin_honored);
+        assert_eq!(model.selected.unwrap().id, "openrouter/free");
+    }
+
+    #[test]
     fn auto_prefers_omniroute_with_qualifying_model() {
         let catalog = vec![
             candidate("openrouter/openai/gpt-5.4", "omniroute", 5, true, 400_000),
@@ -356,6 +414,44 @@ mod tests {
         let task = AskTask { mode: "build".into(), message: "x".into(), attachment_bytes: 0, needs_tools: true };
         let sel = select_model(&task, &catalog, &hs, None, false);
         assert_eq!(sel.selected.unwrap().gateway, "openrouter-direct");
+    }
+
+    #[test]
+    fn auto_prefers_the_advertised_router_on_each_healthy_gateway() {
+        let catalog = vec![
+            candidate("auto/best-free", "omniroute", 3, true, 128_000),
+            candidate("openrouter/auto", "omniroute", 5, true, 400_000),
+            candidate("openrouter/auto", "openrouter-direct", 3, true, 128_000),
+            candidate("openai/gpt-5.4", "openrouter-direct", 5, true, 400_000),
+        ];
+        let task = AskTask { mode: "build".into(), message: "test".into(), attachment_bytes: 0, needs_tools: true };
+        let mut healths = healthy_all();
+        let primary = select_model(&task, &catalog, &healths, None, false).selected.unwrap();
+        assert_eq!((primary.gateway.as_str(), primary.id.as_str()), ("omniroute", "auto/best-free"));
+        healths[0].authenticated = false;
+        let alternate = select_model(&task, &catalog, &healths, None, false).selected.unwrap();
+        assert_eq!((alternate.gateway.as_str(), alternate.id.as_str()), ("openrouter-direct", "openrouter/auto"));
+    }
+
+    #[test]
+    fn qualified_selection_stays_on_the_gateway_chosen_by_the_owner() {
+        let catalog = vec![
+            candidate("openrouter/auto", "omniroute", 4, true, 128_000),
+            candidate("openrouter/auto", "openrouter-direct", 4, true, 128_000),
+        ];
+        let task = AskTask { mode: "plan".into(), message: "test".into(), attachment_bytes: 0, needs_tools: false };
+        let mut healths = healthy_all();
+        let pin = Some("openrouter-direct::openrouter/auto");
+        let selected = select_model(&task, &catalog, &healths, pin, false).selected.unwrap();
+        assert_eq!(selected.gateway, "openrouter-direct");
+        healths[1].authenticated = false;
+        let unavailable = select_model(&task, &catalog, &healths, pin, false);
+        assert!(unavailable.selected.is_none());
+        assert!(unavailable.rationale.contains("is unavailable"));
+        let remaining_catalog = &catalog[..1];
+        let legacy = select_model(&task, remaining_catalog, &healths, Some("openrouter/auto"), false);
+        assert!(legacy.selected.is_none());
+        assert!(legacy.rationale.contains("Select a gateway"));
     }
 
     #[test]
@@ -402,14 +498,14 @@ mod tests {
             candidate("openai/gpt-5.4", "openrouter-direct", 5, true, 400_000),
         ];
         let task = AskTask { mode: "plan".into(), message: "x".into(), attachment_bytes: 0, needs_tools: false };
-        let sel = select_model(&task, &catalog, &healthy_all(), Some("openai/gpt-5.4"), false);
+        let sel = select_model(&task, &catalog, &healthy_all(), Some("openrouter-direct::openai/gpt-5.4"), false);
         assert_eq!(sel.selected.unwrap().id, "openai/gpt-5.4");
         assert!(sel.manual_pin_honored);
         assert!(sel.rationale.contains("Manual override honored"));
     }
 
     #[test]
-    fn manual_pin_on_unhealthy_gateway_falls_back_with_reason() {
+    fn manual_pin_on_unhealthy_gateway_requests_reselection() {
         let catalog = vec![
             candidate("openrouter/openai/gpt-5.4", "omniroute", 5, true, 400_000),
             candidate("openai/gpt-5.4", "openrouter-direct", 5, true, 400_000),
@@ -419,19 +515,20 @@ mod tests {
             health("openrouter-direct", false, false, 1),
         ];
         let task = AskTask { mode: "plan".into(), message: "x".into(), attachment_bytes: 0, needs_tools: false };
-        let sel = select_model(&task, &catalog, &hs, Some("openai/gpt-5.4"), false);
+        let sel = select_model(&task, &catalog, &hs, Some("openrouter-direct::openai/gpt-5.4"), false);
         assert!(!sel.manual_pin_honored);
-        assert_eq!(sel.selected.unwrap().gateway, "omniroute");
-        assert!(sel.rationale.contains("unhealthy/unavailable gateway"));
+        assert!(sel.selected.is_none());
+        assert!(sel.rationale.contains("is unavailable"));
     }
 
     #[test]
-    fn manual_pin_unknown_falls_back_with_reason() {
+    fn manual_pin_unknown_requests_reselection() {
         let catalog = vec![candidate("openrouter/openai/gpt-5.4", "omniroute", 5, true, 400_000)];
         let task = AskTask { mode: "plan".into(), message: "x".into(), attachment_bytes: 0, needs_tools: false };
-        let sel = select_model(&task, &catalog, &healthy_all(), Some("nope/model"), false);
+        let sel = select_model(&task, &catalog, &healthy_all(), Some("omniroute::nope/model"), false);
         assert!(!sel.manual_pin_honored);
-        assert!(sel.rationale.contains("not in the current qualified catalog"));
+        assert!(sel.selected.is_none());
+        assert!(sel.rationale.contains("is unavailable"));
     }
 
     #[test]

@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "target/provider-deps/github-mcp-server.exe": "providers/github-mcp-server.exe",
+      "target/provider-deps/LICENSE": "providers/LICENSE-GitHub-MCP.txt"
+    }
+  }
+}

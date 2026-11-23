@@ -14,7 +14,7 @@ const LAB_ROOT = "C:\\Users\\tonig\\paige-desktop-lab";
 
 export type BrokerError = { message: string };
 
-export function useBroker() {
+export function useBroker(expectedRoot?: string) {
   const [status, setStatus] = useState<BrokerStatus | null>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileRead | null>(null);
@@ -47,27 +47,33 @@ export function useBroker() {
     refreshStatus();
   }, [refreshStatus]);
 
-  const grant = useCallback(async () => {
+  const grantWorkspace = useCallback(async (root: string, read = true, write = true) => {
     setBusy(true);
     try {
       const s = (await invoke("broker_grant_root", {
-        root: LAB_ROOT,
-        read: true,
-        write: true,
+        root,
+        read,
+        write,
       })) as BrokerStatus;
       setStatus(s);
-      notify("Granted read+write access to " + (s.root ?? LAB_ROOT));
+      setFiles([]);
+      setSelectedFile(null);
+      setProposals([]);
+      notify("Authorized workspace " + (s.root ?? root));
+      return true;
     } catch (e) {
       fail("Grant failed: " + String(e));
+      return false;
     } finally {
       setBusy(false);
     }
   }, [notify, fail]);
+  const grant = useCallback(() => grantWorkspace(LAB_ROOT), [grantWorkspace]);
 
-  const revoke = useCallback(async () => {
+  const revoke = useCallback(async (root?: string) => {
     setBusy(true);
     try {
-      const s = (await invoke("broker_revoke")) as BrokerStatus;
+      const s = (await invoke("broker_revoke", { root })) as BrokerStatus;
       setStatus(s);
       setFiles([]);
       setSelectedFile(null);
@@ -82,7 +88,7 @@ export function useBroker() {
   const listFiles = useCallback(async () => {
     setBusy(true);
     try {
-      const f = (await invoke("broker_list_files")) as FileEntry[];
+      const f = (await invoke("broker_list_files", { expectedRoot })) as FileEntry[];
       setFiles(f);
       notify("Listed " + f.length + " file" + (f.length === 1 ? "" : "s"));
     } catch (e) {
@@ -90,13 +96,13 @@ export function useBroker() {
     } finally {
       setBusy(false);
     }
-  }, [notify, fail]);
+  }, [notify, fail, expectedRoot]);
 
   const readFile = useCallback(
     async (relPath: string) => {
       setBusy(true);
       try {
-        const r = (await invoke("broker_read_file", { path: relPath })) as FileRead;
+        const r = (await invoke("broker_read_file", { path: relPath, expectedRoot })) as FileRead;
         setSelectedFile(r);
         notify("Read " + relPath);
       } catch (e) {
@@ -105,7 +111,7 @@ export function useBroker() {
         setBusy(false);
       }
     },
-    [notify, fail]
+    [notify, fail, expectedRoot]
   );
 
   const proposeWrite = useCallback(
@@ -115,7 +121,7 @@ export function useBroker() {
         const p = (await invoke("broker_propose_write", {
           path: relPath,
           newContent,
-          expectedSha256,
+          expectedSha256, expectedRoot,
         })) as ProposalInfo;
         setProposals((prev) => [p, ...prev]);
         notify("Proposal " + p.proposal_id + " created");
@@ -127,7 +133,7 @@ export function useBroker() {
         setBusy(false);
       }
     },
-    [notify, fail]
+    [notify, fail, expectedRoot]
   );
 
   const approve = useCallback(
@@ -247,6 +253,7 @@ export function useBroker() {
     lastNotice,
     refreshStatus,
     grant,
+    grantWorkspace,
     revoke,
     listFiles,
     readFile,

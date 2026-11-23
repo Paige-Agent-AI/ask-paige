@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { McpCallResult, McpReceipt, McpServerStatus, McpStatus } from "../types/mcp";
+import type { McpCallResult, McpReceipt, McpServerStatus, McpStatus, OAuthProvider } from "../types/mcp";
 
 export interface McpMessageEvent {
   connection_id: string;
@@ -26,6 +26,8 @@ export interface UseMcpResult {
   refresh: () => Promise<void>;
   addStdio: (id: string, name: string, command: string, args: string[], env: Record<string, string>, autoConnect: boolean) => Promise<McpServerStatus>;
   addRemote: (id: string, name: string, url: string, authHeader?: string, authToken?: string, autoConnect?: boolean) => Promise<McpServerStatus>;
+  signIn: (provider: OAuthProvider, id?: string, target?: string) => Promise<McpServerStatus>;
+  cancelSignIn: () => Promise<void>;
   connect: (id: string) => Promise<McpServerStatus>;
   disconnect: (id: string) => Promise<void>;
   reconnect: (id: string) => Promise<McpServerStatus>;
@@ -78,12 +80,17 @@ export function useMcp(): UseMcpResult {
           loadReceipts();
         }),
       );
+      const unlisten = await listen("mcp-status-changed", () => {
+        if (mounted) void refresh();
+      });
+      if (mounted) subs.push(unlisten);
+      else unlisten();
     })();
     return () => {
       mounted = false;
       subs.forEach((u) => u());
     };
-  }, [loadReceipts]);
+  }, [loadReceipts, refresh]);
 
   useEffect(() => {
     refresh();
@@ -98,6 +105,7 @@ export function useMcp(): UseMcpResult {
       setError(null);
       return result;
     } catch (e) {
+      await refresh();
       setError(String(e));
       throw e;
     }
@@ -129,6 +137,16 @@ export function useMcp(): UseMcpResult {
     async (id: string) => {
       return withRefresh(invoke("mcp_connect", { id }) as Promise<McpServerStatus>);
     },
+    [refresh, loadReceipts],
+  );
+
+  const signIn = useCallback(
+    (provider: OAuthProvider, id?: string, target?: string) => withRefresh(invoke<McpServerStatus>(
+      "mcp_" + provider + "_oauth",
+      { id: id ?? null, projectRef: provider === "supabase" ? target ?? null : null,
+        repository: provider === "github" ? target ?? null : null,
+        page: provider === "notion" ? target ?? null : null },
+    )),
     [refresh, loadReceipts],
   );
 
@@ -173,6 +191,8 @@ export function useMcp(): UseMcpResult {
     refresh,
     addStdio,
     addRemote,
+    signIn,
+    cancelSignIn: () => invoke<void>("mcp_oauth_cancel"),
     connect,
     disconnect,
     reconnect,

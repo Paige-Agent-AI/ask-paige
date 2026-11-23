@@ -13,6 +13,9 @@
 import http from "node:http";
 
 const PORT = 41011;
+let heldContinuation = false;
+let cutoffsAfterEdit = 0;
+let unusableReplies = 0;
 
 const MODELS = [
   { id: "harness/alpha-coder", tools: true },
@@ -45,7 +48,7 @@ function finish(res, finishReason, textParts) {
   res.end();
 }
 
-function toolCall(res, id, name, args) {
+function toolCall(res, id, name, args, finishReason = "tool_calls") {
   sse(res, {
     id: "c",
     choices: [{
@@ -63,7 +66,7 @@ function toolCall(res, id, name, args) {
       delta: { tool_calls: [{ index: 0, function: { arguments: a } }] },
     }],
   });
-  sse(res, { id: "c", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] });
+  if (finishReason) sse(res, { id: "c", choices: [{ index: 0, delta: {}, finish_reason: finishReason }] });
   sse(res, { id: "c", choices: [], usage: { prompt_tokens: 64, completion_tokens: 32, total_tokens: 96 } });
   res.write("data: [DONE]\n\n");
   res.end();
@@ -84,6 +87,11 @@ function toolResultContents(messages) {
 
 const server = http.createServer((req, res) => {
   const url = req.url;
+  if (req.method === "GET" && url === "/fixtures/continuation") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ held: heldContinuation }));
+    return;
+  }
   if (req.method === "GET" && url === "/v1/models") {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ object: "list", data: MODELS.map((m) => ({ id: m.id, object: "model" })) }));
@@ -103,6 +111,7 @@ const server = http.createServer((req, res) => {
       const wantsTests = /test/i.test(user);
       const wantsWrite = /write|overwrite|replace|create/i.test(user);
       const wantsSlow = /slow/i.test(user);
+      const wantsApprovalFixture = user === "MODE: BUILD.\nWrite the ANT-172 approval fixture.";
 
       res.writeHead(200, {
         "content-type": "text/event-stream",
@@ -125,6 +134,186 @@ const server = http.createServer((req, res) => {
       }
 
       // alpha-coder scripted engineering loop.
+      if (user === "MODE: PLAN.\n@test-reviewer Delegate the fixture reads to a supporting specialist. Have them call read_file for the fixture files.") {
+        const instruction = String(messages[0]?.content ?? "");
+        const child = instruction.includes('"handle":"fixture-verifier"');
+        const returned = messages.some(entry => entry.role === "assistant" &&
+          String(entry.content).includes('"supporting_specialist":"fixture-verifier"'));
+        if (!toolsSeen.length && parsed.tool_choice?.function?.name === "delegate_specialist") {
+          toolCall(res, "assign-fixture-verifier", "delegate_specialist", {
+            name: "Fixture Verifier", assignment: "Read the seven numbered fixture files.",
+          });
+        } else if (!toolsSeen.length) {
+          finish(res, "stop", ["A supporting specialist can verify those files."]);
+        } else if (child && toolsSeen.length === 1 && parsed.tool_choice?.function?.name !== "read_file") {
+          finish(res, "stop", ["The fixture files were already mentioned."]);
+        } else if (child && toolsSeen.length < 8) {
+          toolCall(res, `specialist-read-${toolsSeen.length}`, "read_file", {
+            path: `continuation-progress-${toolsSeen.length}.txt`,
+          });
+        } else if (child && !parsed.tools) {
+          finish(res, "stop", ["The supporting specialist checked seven files."]);
+        } else if (returned && !parsed.tools && instruction.includes('"handle":"test-reviewer"')) {
+          finish(res, "stop", ["The lead reviewed the supporting specialist’s seven verified reads."]);
+        } else {
+          finish(res, "stop", ["The specialist context or tool limit was incorrect."]);
+        }
+        return;
+      }
+      if (user === "MODE: PLAN.\nVerify the closing reply at the tool limit.") {
+        if (toolsSeen.length < 8) {
+          toolCall(res, `limit-read-${toolsSeen.length}`, "read_file", {
+            path: `continuation-progress-${toolsSeen.length + 1}.txt`,
+          });
+        } else {
+          finish(res, "stop", [parsed.tools
+            ? "The final reply unexpectedly allowed tools."
+            : "I checked the eight requested files. The closing reply used those verified reads."]);
+        }
+        return;
+      }
+      if (user === "MODE: PLAN.\nVerify the repeated-read stop fixture.") {
+        toolCall(res, `repeated-read-${toolsSeen.length}`, "read_file", { path: "continuation-progress-1.txt" });
+        return;
+      }
+      if (user === "MODE: BUILD.\nVerify the Workbench Plan file proposal gate.") {
+        const content = "Plan-verified fixture edit.\n";
+        switch (toolsSeen.length) {
+          case 0:
+            toolCall(res, "plan-early-write", "write_file", { path: "continuation-progress-1.txt", content });
+            break;
+          case 1:
+            toolCall(res, "plan-project-read", "read_file", { path: "continuation-progress-1.txt" });
+            break;
+          case 2:
+            toolCall(res, "plan-submit", "submit_workbench_plan", {
+              goal: "Update the fixture text", approach: "Replace the single existing line",
+              files: ["continuation-progress-1.txt"], test_command: "node --test",
+              expected_result: "Fixture tests pass", research_needed: false,
+              research_note: "The native project read establishes the preimage.",
+            });
+            break;
+          case 3:
+            toolCall(res, "plan-late-write", "write_file", {
+              path: "continuation-progress-1.txt", expected_sha256: JSON.parse(toolsSeen[1]).sha256,
+              replacements: [{ old_text: "Independent input 1.\n", new_text: content }],
+            });
+            break;
+          default:
+            finish(res, "stop", ["Finished the Workbench Plan fixture."]);
+        }
+        return;
+      }
+      if (user === "MODE: BUILD.\nVerify the durable Engineering restart workflow.") {
+        const count = toolsSeen.length;
+        const test = "cargo test --offline --manifest-path Cargo.toml";
+        if (count < 64) {
+          toolCall(res, `eng-check-${count + 1}`, "read_file", { path: `checks/check-${count + 1}.txt` });
+        } else if (count === 64) {
+          toolCall(res, "eng-source", "read_file", { path: "src/lib.rs" });
+        } else if (count === 65) {
+          toolCall(res, "eng-plan", "submit_workbench_plan", {
+            goal: "Return the expected fixture value", approach: "Change one value after verifying the source",
+            files: ["src/lib.rs"], test_command: test, expected_result: "The Rust fixture test passes",
+            research_needed: false, research_note: "The local Rust fixture shows the single mismatch.",
+          });
+        } else if (count === 66) {
+          toolCall(res, "eng-approved-edit", "write_file", {
+            path: "src/lib.rs", expected_sha256: JSON.parse(toolsSeen[64]).sha256,
+            replacements: [{ old_text: "    41", new_text: "    42" }],
+          });
+        } else {
+          finish(res, "stop", ["Unexpected model request after the Engineering restart gate."]);
+        }
+        return;
+      }
+
+      if (user === "MODE: BUILD.\nVerify recovery from an empty and a printed tool reply. Call the native tool.") {
+        if (toolsSeen.length > 0) {
+          finish(res, "stop", ["The fixture file was read with the native tool."]);
+        } else if (unusableReplies++ === 0) {
+          finish(res, "stop", ["  "]);
+        } else if (unusableReplies === 2) {
+          finish(res, "stop", ["I will use the tool.\n<tool_call>write_file\n<path>printed-call-must-not-exist.txt</path>\n</tool_call>"]);
+        } else {
+          toolCall(res, "reply-recovery-read", "read_file", { path: "continuation-progress-1.txt" });
+        }
+        return;
+      }
+
+      if (user === "MODE: BUILD.\nVerify recovery after a model cutoff.") {
+        const edit = { path: "cutoff-fixture.txt", content: "One verified edit before cutoff.\n" };
+        if (toolsSeen.length === 0) {
+          toolCall(res, "cutoff-write", "write_file", edit);
+        } else if (toolsSeen.length === 1 && cutoffsAfterEdit < 2) {
+          const finishReason = cutoffsAfterEdit++ === 0 ? "length" : null;
+          toolCall(res, "cutoff-discard", "write_file", {
+            path: "cutoff-must-not-exist.txt", content: "An incomplete response must never execute.\n",
+          }, finishReason);
+        } else if (toolsSeen.length === 1) {
+          toolCall(res, "cutoff-replayed-edit", "write_file", edit);
+        } else if (cutoffsAfterEdit++ === 2) {
+          sse(res, { choices: [{
+            index: 0, finish_reason: "tool_calls",
+            delta: { tool_calls: [{ index: 0, id: "truncated-arguments", type: "function",
+              function: { name: "write_file", arguments: '{"path":"cutoff-must-not-exist.txt","content":' } }] },
+          }] });
+          res.end("data: [DONE]\n\n");
+        } else if (cutoffsAfterEdit === 4) {
+          sse(res, { choices: [{ index: 0, finish_reason: "stop",
+            delta: { tool_calls: [{ index: 0, id: "incomplete-tool" }] } }] });
+          res.end("data: [DONE]\n\n");
+        } else {
+          finish(res, "stop", [JSON.parse(toolsSeen.at(-1)).outcome === "already_applied"
+            ? "Automatic recovery preserved the verified edit."
+            : "Automatic recovery lost the verified edit."]);
+        }
+        return;
+      }
+      if (user === "MODE: BUILD.\nVerify bounded cutoff recovery.") {
+        toolCall(res, "persistent-cutoff", "write_file", {
+          path: "cutoff-must-not-exist.txt", content: "Never apply a cutoff.\n",
+        }, "length");
+        return;
+      }
+      if (user === "MODE: BUILD.\nVerify the disposable coding continuation fixture.") {
+        const edit = { path: "continuation-fixture.txt", content: "One verified coding edit.\n" };
+        if (toolsSeen.length === 0) {
+          toolCall(res, "continuation-write", "write_file", edit);
+        } else if (toolsSeen.length <= 10) {
+          toolCall(res, `continuation-read-${toolsSeen.length}`, "read_file", {
+            path: `continuation-progress-${toolsSeen.length}.txt`,
+          });
+        } else if (toolsSeen.length === 11 && !heldContinuation) {
+          // Hold at the next model request so the isolated client can be killed
+          // after the verified round and restarted with its original history.
+          heldContinuation = true;
+          res.flushHeaders();
+        } else if (toolsSeen.length === 11) {
+          toolCall(res, "continuation-repeat-with-new-id", "write_file", edit);
+        } else {
+          const replay = JSON.parse(toolsSeen.at(-1));
+          finish(res, "stop", [replay.outcome === "already_applied"
+            ? "Continuation completed. The verified edit was not repeated."
+            : "Continuation returned an unexpected duplicate-edit result."]);
+        }
+        return;
+      }
+      if (wantsApprovalFixture) {
+        if (toolsSeen.length === 0) {
+          toolCall(res, "ant172-approval-write", "write_file", {
+            path: "ant172-approval-demo.txt",
+            content: "ANT-172 native approval fixture\n",
+          });
+        } else {
+          const receipt = JSON.parse(toolsSeen.at(-1));
+          finish(res, "stop", [receipt.readback_verified
+            ? "The disposable approval file was written and its readback verified."
+            : "The disposable write did not reach verified completion. Check the receipt."]);
+        }
+        return;
+      }
+
       if (wantsSlow) {
         // Slow stream used by the cancellation test.
         const send = (i) => {

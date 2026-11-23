@@ -3,7 +3,7 @@
 // executable with the local TEST-ONLY harness gateway (PAIGE_TEST_GATEWAY=1).
 // Exercises the complete machinery: probe, auto model selection, streaming,
 // tool loop (list files, real `node --test` execution), receipts, manual pin,
-// PLAN-mode write refusal, unknown-pin fallback, cancellation, and the
+// PLAN-mode write refusal, unknown-pin rejection, cancellation, and the
 // truthful (non-harness) production gateway states.
 import { spawn, execSync } from "node:child_process";
 import fs from "node:fs";
@@ -113,11 +113,27 @@ try {
       attachments: [],
       context_refs: [],
       history: [],
-      model_choice: null, // Auto
+      model_choice: "auto",
     },
   });
   const expectedAutoGateway = openrouterConnected ? "openrouter-direct" : "test-harness";
   check("3. auto selection chooses a healthy gateway", autoRes?.selection?.selected?.gateway === expectedAutoGateway, JSON.stringify(autoRes?.selection?.selected));
+
+  // Wait for the auto turn to settle before starting the pinned harness turn.
+  // The production turn lock is intentionally held for the whole turn; a second
+  // ask_send must not contend with an in-flight model turn.
+  if (autoRes?.turn_id) {
+    for (let i = 0; i < 300; i++) {
+      await sleep(200);
+      const receipts = await invoke("ask_receipts");
+      if (Array.isArray(receipts) && receipts.some((receipt) =>
+        receipt.turn_id === autoRes.turn_id &&
+        (receipt.tool === "turn_ended" || receipt.tool === "task_paused" ||
+         receipt.outcome === "failed" || receipt.outcome === "complete" || receipt.outcome === "cancelled"))) {
+        break;
+      }
+    }
+  }
 
   // 3a-h. Harness-specific BUILD turn: pin harness/alpha-coder so the scripted
   // tool loop (list files → node --test → final answer) runs deterministically.
@@ -128,7 +144,7 @@ try {
       attachments: [],
       context_refs: [],
       history: [],
-      model_choice: "harness/alpha-coder",
+      model_choice: "test-harness::harness/alpha-coder",
     },
   });
   check("3a. ask_send starts a pinned harness turn", sendRes?.turn_id && sendRes?.selection?.selected?.id === "harness/alpha-coder", JSON.stringify(sendRes?.selection?.selected ?? sendRes));
@@ -146,8 +162,8 @@ try {
 
   const receipts1 = (await invoke("ask_receipts")).filter((r) => r.turn_id === turn1);
   const selectReceipt = receipts1.find((r) => r.tool === "select_model");
-  const listReceipt = receipts1.find((r) => r.tool === "list_files");
-  const runReceipt = receipts1.find((r) => r.tool === "run_command");
+  const listReceipt = receipts1.find((r) => r.tool === "list_files" && r.outcome !== "started");
+  const runReceipt = receipts1.find((r) => r.tool === "run_command" && r.outcome !== "started");
   const finalReceipt = receipts1.find((r) => r.tool === "final_answer");
   check("3d. model selection receipt recorded", !!selectReceipt && selectReceipt.model === "harness/alpha-coder", JSON.stringify(selectReceipt));
   check("3e. list_files tool executed", !!listReceipt && listReceipt.outcome === "ok", JSON.stringify(listReceipt));
@@ -163,7 +179,7 @@ try {
       attachments: [],
       context_refs: ["math.js"],
       history: [],
-      model_choice: "harness/beta-analyst",
+      model_choice: "test-harness::harness/beta-analyst",
     },
   });
   check("4a. manual pin honored", sendRes2?.selection?.manual_pin_honored === true && sendRes2?.selection?.selected?.id === "harness/beta-analyst", JSON.stringify(sendRes2?.selection));
@@ -186,7 +202,7 @@ try {
       attachments: [],
       context_refs: [],
       history: [],
-      model_choice: "harness/alpha-coder",
+      model_choice: "test-harness::harness/alpha-coder",
     },
   });
   const turn3 = sendRes3.turn_id;
@@ -197,12 +213,12 @@ try {
     done3 = Array.isArray(receipts) && receipts.some((r) => r.turn_id === turn3 && (r.tool === "final_answer"));
   }
   const receipts3 = (await invoke("ask_receipts")).filter((r) => r.turn_id === turn3);
-  const writeReceipt = receipts3.find((r) => r.tool === "write_file");
+  const writeReceipt = receipts3.find((r) => r.tool === "write_file" && r.outcome !== "started");
   check("5a. PLAN-mode write attempt recorded as error", !!writeReceipt && writeReceipt.outcome === "error" && String(writeReceipt.details).includes("PLAN mode"), JSON.stringify(writeReceipt));
   check("5b. the file was NOT modified in PLAN mode", (() => { const c = fs.readFileSync(path.join(LAB, "math.js"), "utf8"); return c.includes("add(a, b)") && !c.includes("stub"); })(), fs.readFileSync(path.join(LAB, "math.js"), "utf8").slice(0, 40));
   check("5c. PLAN refusal turn completed with explanation", done3 && receipts3.some((r) => String(r.summary).includes("refused")), receipts3.map((r) => r.summary.slice(0, 60)).join(" | "));
 
-  // 6. Unknown manual pin falls back to auto with a truthful reason.
+  // 6. An unavailable manual route is rejected without switching gateways.
   const sendRes4 = await invoke("ask_send", {
     request: {
       message: "Inspect the project files.",
@@ -210,10 +226,10 @@ try {
       attachments: [],
       context_refs: [],
       history: [],
-      model_choice: "harness/does-not-exist",
+      model_choice: "test-harness::harness/does-not-exist",
     },
   });
-  check("6a. unknown pin falls back with reason", sendRes4?.selection?.manual_pin_honored === false && String(sendRes4?.selection?.rationale ?? "").includes("not in the current qualified catalog"), String(sendRes4?.selection?.rationale).slice(0, 160));
+  check("6a. unknown pin stops with an explanation", String(sendRes4?.__err ?? "").includes("is unavailable"), sendRes4?.__err);
 
   // 7. Cancellation on a slow stream.
   const sendRes5 = await invoke("ask_send", {
@@ -223,7 +239,7 @@ try {
       attachments: [],
       context_refs: [],
       history: [],
-      model_choice: "harness/alpha-coder",
+      model_choice: "test-harness::harness/alpha-coder",
     },
   });
   const turn5 = sendRes5.turn_id;

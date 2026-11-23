@@ -48,15 +48,6 @@ export const ActivityIcon = (props: SVGProps<SVGSVGElement>) => (
   </Icon>
 );
 
-export const UsersIcon = (props: SVGProps<SVGSVGElement>) => (
-  <Icon {...props}>
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </Icon>
-);
-
 export const TerminalIcon = (props: SVGProps<SVGSVGElement>) => (
   <Icon {...props}>
     <polyline points="4 17 10 11 4 5" />
@@ -106,6 +97,17 @@ export const FileTextIcon = (props: SVGProps<SVGSVGElement>) => (
     <path d="M16 13H8" />
     <path d="M16 17H8" />
   </Icon>
+);
+
+export const NewChatIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+    <path d="m11 13 1-4 6-6a2 2 0 0 1 3 3l-6 6-4 1Z" />
+  </Icon>
+);
+
+export const ArrowUpIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}><path d="M12 19V5m-6 6 6-6 6 6" /></Icon>
 );
 
 export const CheckIcon = (props: SVGProps<SVGSVGElement>) => (

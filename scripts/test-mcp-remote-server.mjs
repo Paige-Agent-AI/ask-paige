@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Increment 1D — TEST-ONLY local authenticated MCP remote HTTPS server fixture
 // (self-signed; only the 1D local test client uses it). Speaks JSON-RPC 2.0
-// over POST on /mcp, mirroring the stdio fixture semantics.
+// over POST on /mcp, using a session and streaming selected replies.
 import https from "node:https";
 import fs from "node:fs";
 import path from "node:path";
@@ -24,7 +24,7 @@ const TOOLS = [
 
 function computeResult(msg) {
   if (msg.method === "initialize") {
-    return { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "paige-remote-test-server", version: "0.0.1" } };
+    return { protocolVersion: "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "paige-remote-test-server", version: "0.0.1" } };
   }
   if (msg.method === "tools/list") return { tools: TOOLS };
   if (msg.method === "tools/call") {
@@ -74,21 +74,61 @@ async function main() {
         res.end("unauthorized");
         return;
       }
-      let result;
+      let msg;
       try {
-        const msg = JSON.parse(body);
-        result = handleJsonRpc(msg);
+        msg = JSON.parse(body);
       } catch (e) {
         res.statusCode = 400;
         res.end(String(e));
         return;
       }
-      res.setHeader("Content-Type", "application/json");
-      if (result !== null) {
-        res.end(JSON.stringify(result));
+      const accepts = (req.headers.accept ?? "").split(",").map((value) => value.trim());
+      if (!accepts.includes("application/json") || !accepts.includes("text/event-stream")) {
+        res.writeHead(406).end();
+        return;
+      }
+      if (msg.method === "initialize") {
+        if (req.headers["mcp-session-id"] || msg.params?.protocolVersion !== "2025-06-18") {
+          res.writeHead(400).end();
+          return;
+        }
+        const session = String(++nextSession);
+        sessions.set(session, false);
+        res.setHeader("Mcp-Session-Id", session);
       } else {
-        res.statusCode = 204;
+        const session = req.headers["mcp-session-id"];
+        if (!sessions.has(session) || req.headers["mcp-protocol-version"] !== "2025-06-18") {
+          res.writeHead(400).end();
+          return;
+        }
+        if (msg.method === "notifications/initialized") {
+          sessions.set(session, true);
+          res.writeHead(202).end();
+          return;
+        }
+        if (!sessions.get(session)) {
+          res.writeHead(400).end();
+          return;
+        }
+        if (msg.method === "tools/call" && msg.params?.arguments?.text === "expire fixture session") {
+          sessions.delete(session);
+          res.writeHead(404).end();
+          return;
+        }
+      }
+      const result = handleJsonRpc(msg);
+      if (result === null) {
+        res.statusCode = 202;
         res.end();
+      } else if (msg.method === "initialize" || msg.method === "tools/call") {
+        res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        res.write(": keepalive\r\n\r\n");
+        res.write("id: early\r\ndata:\r\n\r\n");
+        res.write('data: {"jsonrpc":"2.0","method":"notifications/message"}\r\n\r\n');
+        res.end("event: message\r\ndata: " + JSON.stringify(result) + "\r\n\r\n");
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(result));
       }
     });
   });
@@ -98,6 +138,9 @@ async function main() {
   });
   console.error(`[remote-mcp-fixture] https MCP server listening on https://127.0.0.1:${PORT}/mcp`);
 }
+
+let nextSession = 0;
+const sessions = new Map();
 
 main().catch((e) => {
   console.error("[remote-mcp-fixture] fatal:", e.message);
