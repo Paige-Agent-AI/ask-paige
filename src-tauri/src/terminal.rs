@@ -205,6 +205,65 @@ const PRIVILEGED_NAMES: &[&str] = &[
     "bash", "sh", "zsh", "wsl", "curl", "wget", "certutil",
 ];
 
+// Git subcommands that never mutate the repository, regardless of arguments
+// (with the --output redirection guard applied separately).
+const GIT_READ_SUBCOMMANDS: &[&str] = &[
+    "status", "log", "diff", "show", "blame", "shortlog", "describe",
+    "rev-parse", "ls-files", "cat-file", "count-objects",
+];
+// List-style subcommands are read-only only without a write operand or a
+// mutating flag after them.
+const SAFE_BRANCH_FLAGS: &[&str] = &[
+    "-a", "--all", "-v", "-vv", "--verbose", "-r", "--remotes", "--list", "--show-current",
+];
+const SAFE_TAG_FLAGS: &[&str] = &["-l", "--list", "-n"];
+const SAFE_REMOTE_FLAGS: &[&str] = &["-v", "--verbose"];
+// Global git flags that consume the next argument as a value.
+const GIT_VALUE_FLAGS: &[&str] = &[
+    "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix",
+];
+
+fn git_first_subcommand(args: &[String]) -> Option<(usize, &str)> {
+    let mut expect_value = false;
+    for (index, arg) in args.iter().enumerate() {
+        if expect_value {
+            expect_value = false;
+            continue;
+        }
+        if arg == "--" {
+            return None;
+        }
+        if arg.starts_with('-') {
+            if !arg.contains('=') && GIT_VALUE_FLAGS.contains(&arg.as_str()) {
+                expect_value = true;
+            }
+            continue;
+        }
+        return Some((index, arg.as_str()));
+    }
+    None
+}
+
+fn git_subcommand_is_read_only(args: &[String]) -> bool {
+    let Some((index, sub)) = git_first_subcommand(args) else {
+        return false;
+    };
+    let rest = &args[index + 1..];
+    // Redirecting a read-only subcommand's output to a file is a write.
+    if rest.iter().any(|a| a == "--output" || a.starts_with("--output=")) {
+        return false;
+    }
+    if GIT_READ_SUBCOMMANDS.contains(&sub) {
+        return true;
+    }
+    match sub {
+        "branch" => rest.iter().all(|a| SAFE_BRANCH_FLAGS.contains(&a.as_str())),
+        "tag" => rest.iter().all(|a| SAFE_TAG_FLAGS.contains(&a.as_str())),
+        "remote" => rest.iter().all(|a| SAFE_REMOTE_FLAGS.contains(&a.as_str())),
+        _ => false,
+    }
+}
+
 pub fn classify_command(name: &str, args: &[String]) -> TerminalRisk {
     let lower = name.to_lowercase();
 
@@ -217,6 +276,12 @@ pub fn classify_command(name: &str, args: &[String]) -> TerminalRisk {
     if lower == "git" {
         if args.iter().any(|a| a == "clean" || a == "reset") {
             return TerminalRisk::Privileged;
+        }
+        // Operation-specific: a bounded set of genuinely read-only git
+        // subcommands is classified Read so PLAN mode can inspect a repository
+        // without permitting arbitrary git usage.
+        if git_subcommand_is_read_only(args) {
+            return TerminalRisk::Read;
         }
     }
 
@@ -905,7 +970,36 @@ mod tests {
     #[test]
     fn classify_git_destructive_subcommands() {
         assert_eq!(classify_command("git", &["clean".into(), "-fd".into()]), TerminalRisk::Privileged);
-        assert_eq!(classify_command("git", &["status".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["reset".into(), "--hard".into()]), TerminalRisk::Privileged);
+    }
+
+    #[test]
+    fn classify_read_only_git_subcommands() {
+        assert_eq!(classify_command("git", &["status".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["status".into(), "--porcelain".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["log".into(), "--oneline".into(), "-5".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["diff".into(), "HEAD".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["show".into(), "HEAD:README.md".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["-C".into(), "some\\path".into(), "status".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["--no-pager".into(), "log".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["branch".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["branch".into(), "-a".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["tag".into(), "-l".into()]), TerminalRisk::Read);
+        assert_eq!(classify_command("git", &["remote".into(), "-v".into()]), TerminalRisk::Read);
+    }
+
+    #[test]
+    fn classify_git_writes_and_output_redirection_stay_blocked() {
+        assert_eq!(classify_command("git", &["branch".into(), "feature".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["branch".into(), "-D".into(), "feature".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["tag".into(), "v1.0".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["remote".into(), "add".into(), "origin".into(), "url".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["commit".into(), "-m".into(), "x".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["push".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["checkout".into(), "main".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["config".into(), "user.name".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["diff".into(), "--output=leak.txt".into()]), TerminalRisk::StandardWrite);
+        assert_eq!(classify_command("git", &["diff".into(), "--output".into(), "leak.txt".into()]), TerminalRisk::StandardWrite);
     }
 
     #[test]

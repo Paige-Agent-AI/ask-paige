@@ -3219,7 +3219,7 @@ fn run_turn(
         if cancel.load(Ordering::Relaxed) {
             return Err("cancelled".to_string());
         }
-        let outcome = if let Some(args) = native_test_args {
+        let mut outcome = if let Some(args) = native_test_args {
             StreamOutcome {
                 text: String::new(), finish_reason: "tool_calls".into(), usage: None,
                 tool_calls: vec![ToolCall {
@@ -3469,7 +3469,15 @@ fn run_turn(
             }
             outcome
         };
-        let complete = outcome.tool_calls.is_empty() && outcome.finish_reason == "stop";
+        let mut complete = outcome.tool_calls.is_empty() && outcome.finish_reason == "stop";
+        if answer_only && !complete && !outcome.text.trim().is_empty() {
+            // The final pass has no tools available. If the model still
+            // requested tools but wrote real findings, keep its honest partial
+            // report instead of discarding it behind the canned limit reply.
+            outcome.tool_calls.clear();
+            outcome.finish_reason = "stop".into();
+            complete = true;
+        }
         if answer_only && (!complete || outcome.text.trim().is_empty()) {
             return Err(LIMIT_REPLY.into());
         }
@@ -3603,6 +3611,15 @@ fn run_turn(
             }
             require_active_chat_project(app, request.pinned_workspace.as_deref())?;
             let mut args: serde_json::Value = serde_json::from_str(&tc.args_json).unwrap_or_default();
+            // A relative cwd notation on Git tools resolves to the pinned
+            // project the broker already authorized for this chat. Any other
+            // path must still match the pinned root exactly.
+            if tc.name.starts_with("git_") && let Some(root) = request.pinned_workspace.as_deref() {
+                let requested = args["root"].as_str().unwrap_or("");
+                if requested.is_empty() || requested == "." || requested == "./" {
+                    args["root"] = serde_json::json!(root);
+                }
+            }
             if visual_proposal_only && tc.name == SUBMIT_PLAN && args.is_object() {
                 args["test_command"] = json!("Verify the proposed visual change at the same viewport, then check the surrounding layout and keyboard interaction.");
             }

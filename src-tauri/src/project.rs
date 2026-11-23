@@ -269,6 +269,28 @@ fn validate_git_root(state: &ProjectState, root: &str) -> Result<PathBuf, String
     Ok(canon)
 }
 
+/// Read-only Git commands may run against the workspace pinned to the active
+/// chat, including roots registered as workflow-only session folders that the
+/// stricter owner-grant boundary deliberately excludes. Mutating Git commands
+/// keep `validate_git_root`.
+fn validate_git_read_root(state: &ProjectState, root: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(root);
+    let canon = std::fs::canonicalize(&p)
+        .map_err(|e| format!("path is inaccessible: {e}"))?;
+    let canon_display = display_path(&canon);
+    let allowed = state.grants.values().filter(|g| !g.revoked).any(|g| {
+        let grant_root = display_path(&PathBuf::from(&g.root));
+        Path::new(&canon_display).starts_with(Path::new(&grant_root))
+    });
+    if !allowed {
+        return Err("project root is not authorized".to_string());
+    }
+    if !canon.is_dir() {
+        return Err("path is not a directory".to_string());
+    }
+    Ok(canon)
+}
+
 pub(crate) fn verify_pinned_git_root(root: &str) -> Result<(), String> {
     let expected = std::fs::canonicalize(root).map_err(|error| error.to_string())?;
     let top = run_git(&expected, &["rev-parse", "--show-toplevel"])?;
@@ -280,7 +302,7 @@ pub(crate) fn verify_pinned_git_root(root: &str) -> Result<(), String> {
 }
 
 pub fn git_status(state: &ProjectState, root: &str) -> Result<Vec<GitFileStatus>, String> {
-    let cwd = validate_git_root(state, root)?;
+    let cwd = validate_git_read_root(state, root)?;
     let out = run_git(&cwd, &["status", "--porcelain"])?;
     let mut files = Vec::new();
     for line in out.lines() {
@@ -300,7 +322,7 @@ pub fn git_status(state: &ProjectState, root: &str) -> Result<Vec<GitFileStatus>
 }
 
 pub fn git_branch_info(state: &ProjectState, root: &str) -> Result<(String, String, u64, u64), String> {
-    let cwd = validate_git_root(state, root)?;
+    let cwd = validate_git_read_root(state, root)?;
     let branch = run_git(&cwd, &["rev-parse", "--abbrev-ref", "HEAD"])?.trim().to_string();
     let head = run_git(&cwd, &["rev-parse", "HEAD"])?.trim().to_string();
     let (ahead, behind) = match run_git(&cwd, &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]) {
@@ -318,7 +340,7 @@ pub fn git_branch_info(state: &ProjectState, root: &str) -> Result<(String, Stri
 }
 
 pub fn git_log(state: &ProjectState, root: &str, limit: usize) -> Result<Vec<GitLogEntry>, String> {
-    let cwd = validate_git_root(state, root)?;
+    let cwd = validate_git_read_root(state, root)?;
     let format = "%H|%an|%ai|%s";
     let out = run_git(&cwd, &["log", &format!("--pretty=format:{format}"), &format!("-{limit}")])?;
     let mut entries = Vec::new();
@@ -345,7 +367,7 @@ pub(crate) fn workflow_diff(state: &ProjectState, root: &str) -> Result<Vec<GitD
 }
 
 fn git_diff_with_policy(state: &ProjectState, root: &str, staged: bool, workflow: bool) -> Result<Vec<GitDiff>, String> {
-    let cwd = if workflow { validate_workflow_git_root(state, root)? } else { validate_git_root(state, root)? };
+    let cwd = if workflow { validate_workflow_git_root(state, root)? } else { validate_git_read_root(state, root)? };
     let mut args = vec!["diff"];
     if workflow {
         args.extend(["--no-ext-diff", "--no-textconv"]);
@@ -399,7 +421,7 @@ fn git_diff_with_policy(state: &ProjectState, root: &str, staged: bool, workflow
 }
 
 pub fn git_branches(state: &ProjectState, root: &str) -> Result<Vec<String>, String> {
-    let cwd = validate_git_root(state, root)?;
+    let cwd = validate_git_read_root(state, root)?;
     let out = run_git(&cwd, &["branch", "--list"])?;
     Ok(out
         .lines()
@@ -447,7 +469,7 @@ pub(crate) fn linked_worktree_identity(state: &ProjectState, root: &str) -> Resu
 }
 
 pub fn git_worktree_list(state: &ProjectState, root: &str) -> Result<Vec<GitWorktreeInfo>, String> {
-    let cwd = validate_git_root(state, root)?;
+    let cwd = validate_git_read_root(state, root)?;
     let out = run_git(&cwd, &["worktree", "list", "--porcelain"])?;
     let mut worktrees = Vec::new();
     let mut current_path = String::new();
@@ -1064,6 +1086,39 @@ mod tests {
         let tmp = std::env::temp_dir();
         let tmp_str = tmp.to_string_lossy().to_string();
         assert!(validate_git_root(&state, &tmp_str).is_err());
+    }
+
+    #[test]
+    fn read_only_git_validation_accepts_workflow_only_pinned_roots() {
+        let folder = std::env::temp_dir().join("paige-read-git-boundary");
+        std::fs::create_dir_all(&folder).unwrap();
+        let mut state = ProjectState { grants: HashMap::new(), next_id: 1, store_unsupported: false };
+        let root = display_path(&folder);
+        state.grants.insert("w".into(), ProjectGrant {
+            id: "w".into(), name: "Chat Folder".into(),
+            root: root.clone(), granted_at: 1, revoked: false, workflow_only: true,
+        });
+        // The strict mutation boundary still excludes the session folder.
+        assert!(validate_git_root(&state, &root).is_err());
+        // Read-only Git inspection accepts the chat-pinned folder.
+        assert!(validate_git_read_root(&state, &root).is_ok());
+        let _ = std::fs::remove_dir(&folder);
+    }
+
+    #[test]
+    fn read_only_git_validation_rejects_revoked_and_unknown_roots() {
+        let folder = std::env::temp_dir().join("paige-read-git-revoked");
+        std::fs::create_dir_all(&folder).unwrap();
+        let mut state = ProjectState { grants: HashMap::new(), next_id: 1, store_unsupported: false };
+        let root = display_path(&folder);
+        state.grants.insert("r".into(), ProjectGrant {
+            id: "r".into(), name: "Revoked".into(),
+            root: root.clone(), granted_at: 1, revoked: true, workflow_only: true,
+        });
+        assert!(validate_git_read_root(&state, &root).is_err(), "revoked roots stay unauthorized");
+        let clean = ProjectState { grants: HashMap::new(), next_id: 1, store_unsupported: false };
+        assert!(validate_git_read_root(&clean, &root).is_err(), "unknown roots stay unauthorized");
+        let _ = std::fs::remove_dir(&folder);
     }
 
     #[test]
