@@ -1,0 +1,94 @@
+/* Ask PAIGE — Stage 2A unified composer (DESIGN.md §11 tokens; no new chrome).
+   ap- prefixed so the composer's own layout never collides with ask-* history. */
+
+.ap-composer { display: flex; flex-direction: column; }
+
+/* Context line: environment + project identity + the single access truth. */
+.ap-ctxline {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 9px 0 8px; border-bottom: 1px solid var(--pd-border);
+  color: var(--pd-text-muted); font-size: 12px;
+}
+.ap-ctx {
+  display: inline-flex; gap: 6px; align-items: center;
+  border: 1px solid var(--pd-border); border-radius: 9px; padding: 4px 10px;
+  color: var(--pd-text-muted); font-size: 12px; background: var(--pd-bg-panel);
+  cursor: pointer;
+  transition: color var(--pd-transition-fast), border-color var(--pd-transition-fast);
+}
+.ap-ctx:hover { color: var(--pd-text); }
+.ap-ctx:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: 2px; }
+.ap-access {
+  border: 1px solid var(--pd-border); border-radius: 999px; padding: 2px 10px;
+  font-size: 11px; color: var(--pd-text-muted);
+}
+.ap-access.gold { border-color: var(--pd-gold); color: var(--pd-gold); }
+.ap-note { margin-left: auto; color: var(--pd-text-dim); font-size: 11px; }
+
+/* Input */
+.ap-inputrow textarea {
+  width: 100%; min-height: 56px; resize: none; border: 0; outline: none;
+  background: transparent; color: var(--pd-text); font-size: 15px; line-height: 1.55;
+  padding: 12px 2px 4px;
+}
+.ap-inputrow textarea::placeholder { color: var(--pd-text-dim); }
+
+/* Compact controls */
+.ap-controls { display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+.ap-btn {
+  display: inline-flex; gap: 6px; align-items: center; justify-content: center;
+  border: 1px solid var(--pd-border); border-radius: 9px; padding: 5px 10px;
+  color: var(--pd-text-muted); font-size: 12px; background: var(--pd-bg-panel); cursor: pointer;
+  transition: color var(--pd-transition-fast), border-color var(--pd-transition-fast), transform var(--pd-transition-fast);
+}
+.ap-btn:hover:not(:disabled) { color: var(--pd-text); }
+.ap-btn:active:not(:disabled) { transform: scale(0.97); }
+.ap-btn:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: 2px; }
+.ap-btn.icon { padding: 5px 9px; font-size: 13px; }
+.ap-btn.on { color: var(--pd-gold); border-color: var(--pd-gold); }
+
+.ap-send {
+  margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 10px; cursor: pointer;
+  background: var(--pd-gold); color: #171204; border: 0;
+  transition: transform var(--pd-transition-fast), opacity var(--pd-transition-fast);
+}
+.ap-send:active:not(:disabled) { transform: scale(0.96); }
+.ap-send:disabled { opacity: 0.45; cursor: not-allowed; }
+.ap-send:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: 2px; }
+
+/* Working-style and other contextual menus */
+.ap-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40;
+  min-width: 250px; background: var(--pd-bg-panel); border: 1px solid var(--pd-border-strong);
+  border-radius: 12px; padding: 6px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+}
+.ap-menu-item {
+  display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left;
+  border: 0; background: transparent; color: var(--pd-text-muted);
+  padding: 8px 10px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+}
+.ap-menu-item small { margin-left: auto; color: var(--pd-text-dim); font-size: 10.5px; }
+.ap-menu-item:hover { background: var(--pd-bg-input); color: var(--pd-text); }
+.ap-menu-item.on { color: var(--pd-gold); }
+.ap-menu-item:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: -2px; }
+.ap-menu-anchor { position: relative; }
+.ap-status-line { color: var(--pd-text-dim); font-size: 11px; padding-top: 6px; }
+
+/* Welcome (new conversation) */
+.ap-welcome { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8vh 24px 24px; }
+.ap-welcome-mark { height: 44px; margin-bottom: 18px; }
+.ap-welcome h2 { font-size: 28px; font-weight: 250; margin: 0 0 10px; letter-spacing: 0.2px; }
+.ap-welcome h2 b { font-weight: 650; }
+.ap-welcome p { color: var(--pd-text-muted); font-size: 14.5px; max-width: 46ch; margin: 0 0 22px; font-weight: 250; }
+.ap-welcome-sugg { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.ap-welcome-sugg button {
+  border: 1px solid var(--pd-border); border-radius: 12px; background: var(--pd-bg-panel);
+  color: var(--pd-text); padding: 10px 16px; font-size: 13px; cursor: pointer; text-align: left;
+  transition: border-color var(--pd-transition-fast), transform var(--pd-transition-fast);
+}
+.ap-welcome-sugg button:hover { border-color: var(--pd-border-strong); }
+.ap-welcome-sugg button:active { transform: scale(0.97); }
+.ap-welcome-sugg button:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: 2px; }
+.ap-welcome-sugg span { display: block; color: var(--pd-text-dim); font-size: 11.5px; margin-top: 2px; }
+@media (max-width: 720px) { .ap-welcome { padding-top: 4vh; } }

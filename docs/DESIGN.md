@@ -215,3 +215,26 @@ against the active project's canonical root instead of a relative working
 directory. Recorded for subsequent conversational-execution and
 project-context reconciliation. Do not weaken permission enforcement; no
 scope change here.
+
+## 14. Stage 2A — the unified composer (authoritative)
+
+One consistent composer for new and existing conversations:
+- **Context line above the input:** environment and project identity in one
+  control (opens the existing project palette), the single access-truth chip
+  (gold only for Full), and the standing note "files stay on this computer
+  until you send" — the local-reference versus model-transmission boundary,
+  stated where the choice is made.
+- **Compact controls below the input:** + options menu, working-style menu,
+  model, gateway health, Send/Stop. Advanced preferences live in menus.
+- **Working style maps honestly to real behavior:** "Plan first" = the
+  existing plan mode (read-only investigation); "Build directly" = the
+  existing build mode (broker approvals unchanged). No "automatic" option is
+  presented because none is implemented; the slot awaits Stage 2C.
+- **Not rendered until their stages:** conversation-type control (2C),
+  dictation (2D), paste/bulk/drag-drop (2B). The architecture accommodates
+  them without redesign.
+- **Welcome** (new conversation, no mandatory project): Command Mark, "What
+  are we working on today?", four suggestions that each seed the composer —
+  one genuine supported action each.
+- Five responsibilities remain distinct; none of them — environment,
+  project, type, style, model — ever expands authority.

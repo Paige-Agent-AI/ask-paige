@@ -1,6 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Markdown from "react-markdown";
+import { Composer } from "../ask/Composer";
+import { Welcome } from "../ask/Welcome";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { ActivityIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, CpuIcon, FileTextIcon, FolderIcon, NewChatIcon, SettingsIcon } from "../components/Icons";
@@ -1432,18 +1434,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
               </div>
             </header>}
             {(!messages?.length && !showLiveReply && !runVisible) && (
-              <div className="ask-empty">
-                <PaigeCommandMark className="ask-empty-mark" label="PAIGE" />
-                <h2>What are we working on?</h2>
-                <p>Give PAIGE an objective or start with your project.</p>
-                <div className="ask-empty-hints">
-                  {[SLASH_COMMANDS[0], SLASH_COMMANDS[3]].map((c) => (
-                    <button key={c.cmd} className="ask-hint-chip" onClick={() => handleInputChange(c.prompt)}>
-                      <code>{c.cmd}</code> {c.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <Welcome onSeed={(seed) => handleInputChange(seed)} />
             )}
             {messages?.map((m, i) => {
               const connectorReceipt = m.role === "user" ? connectorReceiptOf(m) : undefined;
@@ -1741,29 +1732,6 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 <button type="button" className="ask-chip-x" aria-label={`Remove ${selectedSkill.name} skill`}
                   disabled={ask.busy} onClick={() => { setSkillId(null); inputRef.current?.focus(); }}>×</button>
               </span>}
-              <button
-                className={`ask-chip ask-chip-project ${grantedWorkspace && !needsSavedWorkspace ? "granted" : "locked"}`}
-                disabled={ask.busy || broker.busy || chatPending || !!activeChat?.archived || (!!pinnedWorkspace && !!pinnedReady && !needsSavedWorkspace)}
-                title={pinnedWorkspace
-                  ? `Pinned to this chat: ${pinnedWorkspace}${broker.status?.remembered_roots.includes(pinnedWorkspace) ? " · Remembered access" : ""}`
-                  : "Choose a project for this chat"}
-                onClick={() => {
-                  if (pinnedWorkspace && !needsSavedWorkspace) {
-                    if (!pinnedReady) openProject(pinnedWorkspace, true);
-                    return;
-                  }
-                  if (needsSavedWorkspace && savedTask?.root) {
-                    restoreTaskWorkspace();
-                  }
-                  else setProjectPicker((open) => !open);
-                }}
-              >
-                <FolderIcon width={13} height={13} aria-hidden />
-                {pinnedWorkspace ? pinnedReady ? "Pinned project" : "Authorize pinned project"
-                  : needsSavedWorkspace ? "Authorize saved workspace"
-                    : grantedWorkspace ? "Pin project" : "Choose project"}
-                {(pinnedWorkspace ?? grantedWorkspace) && <span className="ask-workspace-path">{pinnedWorkspace ?? grantedWorkspace}</span>}
-              </button>
               <Button variant="ghost" size="sm" onClick={openTeamPicker}
                 disabled={ask.busy || chatPending || !!activeChat?.archived}>{specialists.length ? "Manage specialists" : "Add specialists"}</Button>
               {!savedTask && attachments.map((a) => (
@@ -1879,48 +1847,61 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 </button>
               ))}
             </div>}
-            <div className="ask-inputrow">
-              <textarea
-                ref={inputRef}
-                className="ask-input"
-                aria-label="Message PAIGE"
-                aria-describedby={selectedSkill && !savedTask ? "ask-active-skill" : undefined}
-                placeholder={activeChat?.archived ? "Unarchive this chat to send a message" : ask.busy ? "PAIGE is working…" : savedTask ? "Check workspace access or look up a Linear issue while this task is paused" : "Message PAIGE, or @mention a specialist…"}
-                value={input}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
-                disabled={!historyLoaded || projectPicker || ask.busy || chatPending || !!activeChat?.archived}
-                rows={2}
+            <div className="ap-inputrow">
+              <Composer
+                input={input}
+                inputRef={inputRef}
+                inputPlaceholder={activeChat?.archived ? "Unarchive this chat to send a message"
+                  : ask.busy ? "PAIGE is working..."
+                  : savedTask ? "Check workspace access or look up a Linear issue while this task is paused"
+                  : "Message Ask PAIGE, or @mention a specialist..."}
+                inputAriaDescribedBy={selectedSkill && !savedTask ? "ask-active-skill" : undefined}
+                inputDisabled={!historyLoaded || projectPicker || ask.busy || chatPending || !!activeChat?.archived}
+                onInputChange={handleInputChange}
+                onSend={send}
+                busy={ask.busy}
+                onCancel={ask.cancel}
+                cancelLabel={mode === "build" ? "Pause" : "Cancel"}
+                sendDisabled={!input.trim() || !historyLoaded || chatPending || !!runningChatId || projectPicker || !!activeChat?.archived}
+                mode={composerMode}
+                onSetMode={setMode}
+                modeLocked={!!workflowDraft}
+                workspaceLabel={(pinnedWorkspace ?? grantedWorkspace)
+                  ? "▦ " + folderName(pinnedWorkspace ?? grantedWorkspace ?? "") : "◇ No project"}
+                onWorkspaceOpen={() => {
+                  if (pinnedWorkspace && !needsSavedWorkspace) {
+                    if (!pinnedReady) openProject(pinnedWorkspace, true);
+                    return;
+                  }
+                  if (needsSavedWorkspace && savedTask?.root) {
+                    restoreTaskWorkspace();
+                  }
+                  else setProjectPicker((open) => !open);
+                }}
+                projectPickerOpen={projectPicker}
+                accessLabel={scopeMode === "full" ? "Full access"
+                  : scopeMode === "observe" ? "Observe — read only"
+                  : scopeMode === "selected" ? "Selected access" : "Access unavailable"}
+                accessFull={scopeMode === "full"}
+                accessTitle={`Computer Access: ${scopeLabel}. ${scopeNote}`}
+                menuTriggerNode={<button type="button" ref={menuButton} className="ap-btn icon" aria-label="More message options"
+                  aria-expanded={composerMenu !== null} aria-controls="ask-composer-options"
+                  disabled={!historyLoaded || ask.busy || chatPending || !!savedTask || !!activeChat?.archived}
+                  onClick={() => { setComposerMenu((menu) => menu ? null : "options"); setAttachOpen(false); }}>＋</button>}
+                modelNode={<div className="ask-composer-model"><ModelPicker status={ask.status} choice={modelChoice} onChange={changeModel}
+                  disabled={ask.busy || !ask.status} /></div>}
+                healthNode={<div className="ask-status-chip" title={gatewaySummary} aria-label={gatewaySummary}>
+                  <span className={`ask-dot ${omnirouteHealth?.reachable && omnirouteHealth?.authenticated ? "on" : omnirouteHealth?.reachable ? "warn" : "off"}`} />
+                  OmniRoute
+                  <span className={`ask-dot ask-dot-second ${openrouterHealth?.authenticated ? "on" : "off"}`} />
+                  OpenRouter
+                </div>}
+                routeLine={ask.busy && ask.selection?.selected ? <div className="ask-selected-line">
+                  Route: {ask.selection.selected.id} · {ask.selection.selected.gateway}
+                </div> : null}
               />
             </div>
 
-            <div className="ask-controls">
-              <button type="button" ref={menuButton} className="ask-composer-plus" aria-label="More message options"
-                aria-expanded={composerMenu !== null} aria-controls="ask-composer-options"
-                disabled={!historyLoaded || ask.busy || chatPending || !!savedTask || !!activeChat?.archived}
-                onClick={() => { setComposerMenu((menu) => menu ? null : "options"); setAttachOpen(false); }}>+</button>
-              <div className="ask-segmented" role="group" aria-label="Operating mode">
-                <button className={`ask-segment ${composerMode === "plan" ? "active" : ""}`} aria-pressed={composerMode === "plan"} disabled={!!workflowDraft} onClick={() => setMode("plan")} title="Research and inspect">Plan</button>
-                <button className={`ask-segment ${composerMode === "build" ? "active" : ""}`} aria-pressed={composerMode === "build"} disabled={!!workflowDraft} onClick={() => setMode("build")} title="Make changes with broker approval">Build</button>
-              </div>
-              <div className="ask-composer-model"><ModelPicker status={ask.status} choice={modelChoice} onChange={changeModel}
-                disabled={ask.busy || !ask.status} /></div>
-              <div className="ask-status-chip" title={gatewaySummary} aria-label={gatewaySummary}>
-                <span className={`ask-dot ${omnirouteHealth?.reachable && omnirouteHealth?.authenticated ? "on" : omnirouteHealth?.reachable ? "warn" : "off"}`} />
-                OmniRoute
-                <span className={`ask-dot ask-dot-second ${openrouterHealth?.authenticated ? "on" : "off"}`} />
-                OpenRouter
-              </div>
-              {ask.busy
-                ? <div className="ask-send"><Button variant="secondary" size="sm" onClick={ask.cancel}>{mode === "build" ? "Pause" : "Cancel"}</Button></div>
-                : <button type="button" className="ask-submit" aria-label="Send message" title="Send message (Enter)"
-                    onClick={send} disabled={!input.trim() || !historyLoaded || chatPending || !!runningChatId || projectPicker || !!activeChat?.archived}>
-                    <ArrowUpIcon width={18} height={18} aria-hidden />
-                  </button>}
-            </div>
-            {ask.busy && ask.selection?.selected && <div className="ask-selected-line">
-              Route: {ask.selection.selected.id} · {ask.selection.selected.gateway}
-            </div>}
           </div>
           </>}
         </main>
