@@ -56,7 +56,11 @@ function ComputerAccess() {
   const run = async (action: () => Promise<ScopeStatus>) => {
     if (busy) return;
     setBusy(true); setError(null);
-    try { setScope(await action()); }
+    try {
+      setScope(await action());
+      // The rail's trust dot follows real scope changes, not navigation.
+      window.dispatchEvent(new CustomEvent("paige-scope-changed"));
+    }
     catch (e) { setError(String(e)); }
     finally { setBusy(false); }
   };

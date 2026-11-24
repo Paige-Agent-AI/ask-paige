@@ -58,7 +58,7 @@ work. Future stages add their feedback states to this table, not new motion syst
 | Rail navigation | instant; active tint `--pd-accent-dim` + inset border |
 | Rail hover | 120ms background/color |
 | Emergency stop hover | 120ms fill inversion |
-| Awakening | 250ms mark reveal (opacity+scale 0.94→1), 180ms dismiss crossfade |
+| Awakening | 250ms mark reveal (opacity+scale 0.94→1), dismisses by unmount after 480ms (instant; the reveal's exit is the shell appearing — no lingering overlay) |
 | Inspector toggle | instant (high frequency; motion deferred by gate) |
 
 ## 5. Focus, keyboard and accessibility

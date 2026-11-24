@@ -24,6 +24,7 @@
   /* Motion (Animate standard: strong curves, sub-300ms UI) */
   --pd-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --pd-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --pd-reveal: 250ms;
 
   /* Typography */
   --pd-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -87,5 +88,6 @@
     --pd-transition: 0ms;
     --pd-ease-out: step-end;
     --pd-ease-in-out: step-end;
+    --pd-reveal: 0ms;
   }
 }

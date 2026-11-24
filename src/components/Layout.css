@@ -72,5 +72,5 @@
 .awakening-status { font-size: var(--pd-text-sm); color: var(--pd-text-muted); }
 :root[data-awakening="revealed"] .awakening-mark {
   opacity: 1; transform: scale(1);
-  transition: opacity 250ms var(--pd-ease-out), transform 250ms var(--pd-ease-out);
+  transition: opacity var(--pd-reveal) var(--pd-ease-out), transform var(--pd-reveal) var(--pd-ease-out);
 }

@@ -37,7 +37,11 @@ export function Rail({ active, onNavigate }: { active: Screen; onNavigate: (s: S
     refreshStatus();
     const handler = () => refreshStatus();
     window.addEventListener("paige-navigate", handler);
-    return () => window.removeEventListener("paige-navigate", handler);
+    window.addEventListener("paige-scope-changed", handler);
+    return () => {
+      window.removeEventListener("paige-navigate", handler);
+      window.removeEventListener("paige-scope-changed", handler);
+    };
   }, [refreshStatus]);
 
   const emergencyStop = () => {

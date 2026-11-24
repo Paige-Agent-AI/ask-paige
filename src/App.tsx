@@ -90,7 +90,10 @@ function App() {
     const reveal = requestAnimationFrame(() => {
       document.documentElement.dataset.awakening = "revealed";
     });
-    const dismiss = setTimeout(() => setAwakening(false), 480);
+    const dismiss = setTimeout(() => {
+      delete document.documentElement.dataset.awakening;
+      setAwakening(false);
+    }, 480);
     return () => { cancelAnimationFrame(reveal); clearTimeout(dismiss); };
   }, []);
 
