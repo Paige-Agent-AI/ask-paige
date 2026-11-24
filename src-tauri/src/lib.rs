@@ -17,6 +17,7 @@ mod project;
 mod project_access;
 mod provider_oauth;
 mod secrets;
+mod scope;
 mod skills;
 mod terminal;
 mod team;
@@ -46,6 +47,9 @@ pub fn run() {
     let mcp_state = Mutex::new(McpState::new());
     mcp::load_persisted_servers(&mcp_state);
     let project_state = Mutex::new(ProjectState::new());
+    // Load the single dynamic scope registry before any broker/terminal state
+    // exists: it is the root authority for every subsequent check.
+    scope::init();
     tauri::Builder::default()
         .manage(Mutex::new(BrokerState::new()))
         .manage(Mutex::new(TerminalState::new()))
@@ -141,6 +145,11 @@ pub fn run() {
             project::git_checkout_cmd,
             project::git_add_cmd,
             project::git_commit_cmd,
+            scope::scope_status,
+            scope::scope_set_mode,
+            scope::scope_add_root,
+            scope::scope_remove_root,
+            scope::scope_revoke_all,
             chats::chat_list,
             chats::chat_search,
             chats::chat_new,

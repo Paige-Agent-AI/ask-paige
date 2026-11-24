@@ -68,15 +68,10 @@ pub(crate) fn native_confirm(message: &str, caption: &str) -> bool {
     r == IDYES
 }
 
-// Compile-time allowlist of roots the owner may grant. A future model or
-// agent cannot extend this list at runtime: grant_root() rejects anything that
-// is not one of these roots (or a subdirectory of one).
-// 1F (ANT-174): the real PAIGE Desktop source repository is owner-authorized.
-const ALLOWED_ROOTS: &[&str] = &[
-    r"C:\Users\tonig\paige-desktop-lab",
-    r"C:\Users\tonig\paige-desktop",
-];
-
+// ANT-174 (superseded by ANT-173 Slice 1): this file previously carried a
+// compile-time allowlist of roots the owner may grant. The dynamic Computer
+// Access scope registry is now the single authority; grants outside it are
+// rejected there.
 const MAX_FILE_BYTES: usize = 64 * 1024;
 const MAX_PROJECT_TEXT_BYTES: usize = 512 * 1024;
 const APPROVAL_TTL_SECS: u64 = 300;
@@ -176,7 +171,9 @@ struct Proposal {
 }
 
 pub struct BrokerState {
-    allowed_roots: Vec<PathBuf>,
+    // Root authority no longer lives here: every check consults the single
+    // dynamic scope registry (crate::scope) shared with the terminal and the
+    // AI tool path.
     grant: Option<Grant>,
     session_projects: HashMap<String, Grant>,
     suppressed_projects: HashSet<String>,
@@ -189,17 +186,7 @@ pub struct BrokerState {
 
 impl BrokerState {
     pub fn new() -> Self {
-        let mut allowed = Vec::new();
-        for r in ALLOWED_ROOTS {
-            if let Ok(c) = std::fs::canonicalize(r) {
-                // Reject roots that are themselves reparse points.
-                if !is_reparse_point(&c) {
-                    allowed.push(c);
-                }
-            }
-        }
         Self {
-            allowed_roots: allowed,
             grant: None,
             session_projects: HashMap::new(),
             suppressed_projects: HashSet::new(),
@@ -222,7 +209,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(h.finalize())
 }
 
-fn is_reparse_point(p: &Path) -> bool {
+pub(crate) fn is_reparse_point(p: &Path) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
@@ -367,6 +354,13 @@ fn require_grant(state: &BrokerState, need_write: bool) -> Result<PathBuf, Strin
     if !grant.read || (need_write && !grant.write) {
         return Err("the current grant does not include the requested operation".into());
     }
+    // The Computer Access registry is the standing authority. A session minted
+    // before the owner removed or downgraded a root stops working here, so
+    // revocation reaches every read, browse and write boundary.
+    let (scope_read, scope_write) = crate::scope::effective_access(&grant.root);
+    if !scope_read || (need_write && !scope_write) {
+        return Err("The active project is no longer in the authorized Computer Access scope.".into());
+    }
     if let Some(identity) = &grant.remembered {
         let current = hold_project_directory(&grant.root).and_then(|file| FolderIdentity::read(&file));
         if current.as_ref() != Ok(identity) || project_access::load()?.get(&display_path(&grant.root)) != Some(identity) {
@@ -489,12 +483,12 @@ fn status_of(s: &BrokerState) -> BrokerStatus {
         root: grant.map(|grant| display_path(&grant.root)),
         read: grant.is_some_and(|grant| grant.read),
         write: grant.is_some_and(|grant| grant.write),
-        terminal_available: grant.is_some_and(|grant| grant.read && crate::terminal::workspace_supported(&grant.root)),
+        terminal_available: grant.is_some_and(|grant| grant.read && crate::scope::workspace_root_supported(&grant.root)),
         pending_proposals: if grant.is_some() {
             s.proposals.values().filter(|p| p.status == ProposalStatus::Pending).count()
         } else { 0 },
         session_id: s.session_id.clone(),
-        allowed_roots: s.allowed_roots.iter().map(|p| display_path(p)).collect(),
+        allowed_roots: crate::scope::display_roots(),
         remembered_roots: remembered.into_keys().filter(|root| !s.suppressed_projects.contains(root)).collect(),
     }
 }
@@ -518,11 +512,12 @@ pub fn broker_grant_root(
         return Err("root must not be a reparse point".to_string());
     }
     let s = state.lock().unwrap();
-    // The requested root must be one of the compile-time allowlisted roots or a
-    // subdirectory of one. An agent cannot grant itself an arbitrary root.
-    let allowed = s.allowed_roots.iter().any(|r| canon == *r || canon.starts_with(r));
+    // The requested root must be inside the single dynamic scope registry at
+    // the requested operation class. An agent cannot grant itself a root the
+    // owner never authorized.
+    let allowed = crate::scope::is_authorized_root(&canon, write);
     if !allowed {
-        return Err("root is not in the broker allowlist".to_string());
+        return Err("root is not in the authorized Computer Access scope".to_string());
     }
     drop(s);
     let directory = hold_project_directory(&canon)?;
@@ -564,6 +559,12 @@ fn cancel_queued_writes(state: &mut BrokerState) {
     }
 }
 
+/// The active session grant's root and write flag, for scope-revocation checks.
+pub(crate) fn active_grant_root(state: &Mutex<BrokerState>) -> Option<(PathBuf, bool)> {
+    let s = state.lock().unwrap();
+    s.grant.as_ref().map(|g| (g.root.clone(), g.write))
+}
+
 pub(crate) fn suspend_session_project(state: tauri::State<Mutex<BrokerState>>) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     can_switch(&state)?;
@@ -581,10 +582,13 @@ pub(crate) fn select_session_project(
     let mut s = state.lock().unwrap();
     let key = root;
     let remembered = project_access::load().unwrap_or_default();
-    let usable = |grant: &Grant| grant.read && (!require_write || grant.write)
-        && grant.remembered.as_ref().is_none_or(|identity|
-            remembered.get(&display_path(&grant.root)) == Some(identity)
-                && hold_project_directory(&grant.root).and_then(|file| FolderIdentity::read(&file)).as_ref() == Ok(identity));
+    let usable = |grant: &Grant| {
+        let (scope_read, scope_write) = crate::scope::effective_access(&grant.root);
+        grant.read && scope_read && (!require_write || (grant.write && scope_write))
+            && grant.remembered.as_ref().is_none_or(|identity|
+                remembered.get(&display_path(&grant.root)) == Some(identity)
+                    && hold_project_directory(&grant.root).and_then(|file| FolderIdentity::read(&file)).as_ref() == Ok(identity))
+    };
     if s.grant.as_ref().is_some_and(|active| project_key(&active.root) == key && usable(active)) {
         return Ok(true);
     }
@@ -610,9 +614,16 @@ pub(crate) fn select_session_project(
         return Ok(false);
     }
 
+    let (scope_read, scope_write) = crate::scope::effective_access(&canonical);
+    if !scope_read {
+        // The owner removed this root from Computer Access: opening the chat
+        // must not mint authority the registry no longer grants.
+        return Ok(false);
+    }
+
     activate_root(&mut s, Grant {
         root: canonical.clone(), _directory: Some(directory), remembered: Some(identity.clone()),
-        read: true, write: true,
+        read: scope_read, write: scope_write,
     })?;
     drop(s);
     crate::project::register_open_folder(app, &canonical, root);
@@ -624,6 +635,11 @@ pub(crate) fn activate_project_folder(
 ) -> Result<BrokerStatus, String> {
     let mut s = state.lock().unwrap();
     can_switch(&s)?;
+    // Computer Access is the only authority that can open a project session.
+    let (read, write) = crate::scope::effective_access(&root);
+    if !read {
+        return Err("This folder is not in PAIGE's Computer Access scope. Add it under Settings > Computer Access first.".into());
+    }
     let remembered = if remember {
         let identity = FolderIdentity::read(&directory)?;
         project_access::update(&display_path(&root), Some(identity.clone()))?;
@@ -632,7 +648,7 @@ pub(crate) fn activate_project_folder(
     } else {
         None
     };
-    activate_root(&mut s, Grant { root, _directory: Some(directory), remembered, read: true, write: true })
+    activate_root(&mut s, Grant { root, _directory: Some(directory), remembered, read, write })
 }
 
 #[tauri::command]
@@ -1206,8 +1222,8 @@ pub fn broker_apply(
         }
     }
 
-    // Re-check revoked immediately before touching the filesystem.
-    if state.lock().unwrap().revoked {
+    // Re-check revoked and scope immediately before touching the filesystem.
+    if state.lock().unwrap().revoked || !crate::scope::is_authorized_root(&root, true) {
         let mut s = state.lock().unwrap();
         if let Some(p) = s.proposals.get_mut(&proposal_id) {
             p.status = ProposalStatus::Cancelled;

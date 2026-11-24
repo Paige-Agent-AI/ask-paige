@@ -71,15 +71,10 @@ fn display_path(p: &Path) -> String {
 // Compile-time authorized project roots. A command may only run inside one of
 // these roots (or a subdirectory). An agent cannot extend this list at runtime.
 // 1F (ANT-174): the real PAIGE Desktop source repository is owner-authorized.
-const ALLOWED_ROOTS: &[&str] = &[
-    r"C:\Users\tonig\paige-desktop-lab",
-    r"C:\Users\tonig\paige-desktop",
-];
-
-pub(crate) fn workspace_supported(root: &Path) -> bool {
-    ALLOWED_ROOTS.iter().filter_map(|path| std::fs::canonicalize(path).ok())
-        .any(|allowed| root.starts_with(allowed))
-}
+// Root authority lives in the single dynamic scope registry (crate::scope),
+// shared with the broker and the AI tool path. Terminal execution requires a
+// write-capable root outside Observe mode; the broker consults
+// scope::workspace_root_supported directly.
 
 const APPROVAL_TTL_SECS: u64 = 300;
 
@@ -393,7 +388,6 @@ pub struct TerminalState {
     sessions: HashMap<String, ManagedSession>,
     receipts: Vec<TerminalReceipt>,
     pending: HashMap<String, PendingExecution>,
-    allowed_roots: Vec<PathBuf>,
 }
 
 struct PendingExecution {
@@ -406,30 +400,24 @@ struct PendingExecution {
 
 impl TerminalState {
     pub fn new() -> Self {
-        let mut allowed = Vec::new();
-        for r in ALLOWED_ROOTS {
-            if let Ok(c) = std::fs::canonicalize(r) {
-                allowed.push(c);
-            }
-        }
         Self {
             next_id: 1,
             sessions: HashMap::new(),
             receipts: Vec::new(),
             pending: HashMap::new(),
-            allowed_roots: allowed,
         }
     }
 }
 
 // Validate a cwd from the request, or fall back to the first valid allowed root.
 // Fail closed when no authorized root is available: never panic, never launch.
-fn resolve_cwd(state: &Mutex<TerminalState>, requested: Option<&str>) -> Result<PathBuf, String> {
+// The allowed roots always come from the single dynamic scope registry.
+fn resolve_cwd(requested: Option<&str>) -> Result<PathBuf, String> {
+    let allowed = crate::scope::workspace_roots();
     if let Some(cwd) = requested {
-        return validate_cwd(cwd, &state.lock().unwrap().allowed_roots);
+        return validate_cwd(cwd, &allowed);
     }
-    let s = state.lock().unwrap();
-    s.allowed_roots
+    allowed
         .first()
         .cloned()
         .ok_or_else(|| "no authorized project root is available; execution refused (fail closed)".to_string())
@@ -459,7 +447,7 @@ fn spawn_and_manage(
     command_line: String,
     _risk: TerminalRisk,
 ) -> Result<TerminalSession, String> {
-    let cwd = resolve_cwd(state, request.cwd.as_deref())?;
+    let cwd = resolve_cwd(request.cwd.as_deref())?;
 
     let mut cmd = Command::new(&resolved_exe);
     cmd.args(&request.args)
@@ -700,13 +688,13 @@ pub struct SyncRunResult {
 /// here (they require the interactive owner-approval flow) unless
 /// `approved` is true, set only after the owner approved via the native dialog.
 pub fn run_to_completion(
-    state: &Mutex<TerminalState>,
+    _state: &Mutex<TerminalState>,
     command: &str,
     args: &[String],
     cwd: Option<&str>,
     approved: bool,
 ) -> Result<SyncRunResult, String> {
-    let workdir = resolve_cwd(state, cwd)?;
+    let workdir = resolve_cwd(cwd)?;
     run_to_completion_at(command, args, &workdir, approved)
 }
 
@@ -908,6 +896,24 @@ pub fn terminal_kill(state: tauri::State<Mutex<TerminalState>>, session_id: Stri
     }
 }
 
+/// Scope revocation support: kill every running session whose working
+/// directory is no longer inside one of the authorized roots. Returns the
+/// number of sessions signalled to stop. Exited sessions are left alone.
+pub(crate) fn kill_sessions_outside(state: &Mutex<TerminalState>, keep: &[PathBuf]) -> usize {
+    let s = state.lock().unwrap();
+    let mut stopped = 0;
+    for sess in s.sessions.values() {
+        if !matches!(sess.status, SessionStatus::Running) {
+            continue;
+        }
+        let inside = keep.iter().any(|root| sess.cwd == *root || sess.cwd.starts_with(root));
+        if !inside && sess.input_tx.send(ControlMsg::Kill).is_ok() {
+            stopped += 1;
+        }
+    }
+    stopped
+}
+
 #[tauri::command]
 pub fn terminal_list(state: tauri::State<Mutex<TerminalState>>) -> Vec<TerminalSession> {
     let s = state.lock().unwrap();
@@ -1043,18 +1049,14 @@ mod tests {
 
     #[test]
     fn resolve_cwd_fails_closed_with_no_allowed_roots() {
-        // An unavailable/invalid authorized root must fail closed — never
-        // panic, never launch a command.
-        let state = Mutex::new(TerminalState {
-            next_id: 1,
-            sessions: HashMap::new(),
-            receipts: Vec::new(),
-            pending: HashMap::new(),
-            allowed_roots: Vec::new(),
-        });
-        let res = resolve_cwd(&state, None);
+        // An empty authorized-root set must fail closed for any existing path:
+        // never panic, never launch a command.
+        let res = validate_cwd(
+            &std::env::temp_dir().to_string_lossy(),
+            &[],
+        );
         assert!(res.is_err());
-        assert!(res.unwrap_err().contains("fail closed"));
+        assert!(res.unwrap_err().contains("outside authorized"));
     }
 
     #[test]
@@ -1062,14 +1064,7 @@ mod tests {
         let root = std::fs::canonicalize(std::env::temp_dir()).unwrap();
         let sub = root.join("paige-terminal-test-sub2");
         let _ = std::fs::create_dir_all(&sub);
-        let state = Mutex::new(TerminalState {
-            next_id: 1,
-            sessions: HashMap::new(),
-            receipts: Vec::new(),
-            pending: HashMap::new(),
-            allowed_roots: vec![root],
-        });
-        let res = resolve_cwd(&state, Some(sub.to_string_lossy().to_string().as_str()));
+        let res = validate_cwd(sub.to_string_lossy().to_string().as_str(), &[root]);
         assert!(res.is_ok(), "{res:?}");
     }
 
@@ -1080,7 +1075,6 @@ mod tests {
             sessions: HashMap::new(),
             receipts: Vec::new(),
             pending: HashMap::new(),
-            allowed_roots: Vec::new(),
         };
         let old_req = TerminalExecuteRequest {
             command: "cmd".to_string(),

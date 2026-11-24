@@ -1706,3 +1706,9 @@
 .ask-project-rename { display: flex; gap: var(--pd-space-2); padding: var(--pd-space-2); }
 .ask-project-rename input { flex: 1 1 auto; min-width: 0; }
 .ask-add-project { margin-top: var(--pd-space-2); }
+
+/* Computer Access mode chip (ANT-173) */
+.ask-scope-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--pd-border);
+  color: var(--pd-text-muted); white-space: nowrap; cursor: default; }
+.ask-scope-chip[data-mode="full"] { border-color: var(--pd-accent); color: var(--pd-text); }
+.ask-scope-chip[data-mode="observe"] { border-style: dashed; }

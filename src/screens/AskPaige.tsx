@@ -600,6 +600,25 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     if (visible) void broker.refreshStatus();
   }, [visible, broker.refreshStatus]);
 
+  const [scopeMode, setScopeMode] = useState<"observe" | "selected" | "full" | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    void invoke<{ mode: "observe" | "selected" | "full" }>("scope_status")
+      .then((status) => setScopeMode(status.mode))
+      .catch(() => setScopeMode(null));
+  }, [visible]);
+  const scopeLabel = scopeMode === "observe" ? "Observe"
+    : scopeMode === "full" ? "Full access"
+    : scopeMode === "selected" ? "Selected scope"
+      : "Scope unavailable";
+  const scopeNote = scopeMode === "observe"
+    ? "Read-only. No writes, terminal or effectful tools."
+    : scopeMode === "full"
+      ? "Ordinary operations inside your granted roots, within your Windows account's own permissions."
+      : scopeMode === "selected"
+        ? "Only the roots granted in Settings under Computer Access."
+        : "Computer Access status could not be read. No effectful operations are authorized.";
+
   const withChatAction = async (action: () => Promise<void>) => {
     if (chatAction.current) return;
     chatAction.current = true;
@@ -1249,6 +1268,8 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
           Conversations
         </button>
         <div className="ask-topbar-conversation">
+          <span className="ask-scope-chip" title={`Computer Access: ${scopeLabel} ${scopeNote}`}
+            data-mode={scopeMode ?? ""}>{scopeLabel}</span>
           {pinnedWorkspace && <span className="ask-breadcrumb" title={pinnedWorkspace}>
             <FolderIcon width={14} height={14} aria-hidden /> <span>{folderName(pinnedWorkspace)}</span>
             <ChevronRightIcon width={12} height={12} aria-hidden />

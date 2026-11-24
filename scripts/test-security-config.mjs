@@ -152,6 +152,11 @@ const allowed = new Set([
   "allow-git-checkout-cmd",
   "allow-git-add-cmd",
   "allow-git-commit-cmd",
+  "allow-scope-status",
+  "allow-scope-set-mode",
+  "allow-scope-add-root",
+  "allow-scope-remove-root",
+  "allow-scope-revoke-all",
 ]);
 check("capabilities are the minimal approved set", perms.every((p) => allowed.has(p)), perms.join(", "));
 const manifest = read("src-tauri/build.rs");

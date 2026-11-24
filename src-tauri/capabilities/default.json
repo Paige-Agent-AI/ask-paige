@@ -97,6 +97,11 @@
     "allow-git-create-branch-cmd",
     "allow-git-checkout-cmd",
     "allow-git-add-cmd",
-    "allow-git-commit-cmd"
+    "allow-git-commit-cmd",
+    "allow-scope-status",
+    "allow-scope-set-mode",
+    "allow-scope-add-root",
+    "allow-scope-remove-root",
+    "allow-scope-revoke-all"
   ]
 }

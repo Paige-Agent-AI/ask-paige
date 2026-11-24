@@ -92,6 +92,11 @@ fn main() {
         "git_checkout_cmd",
         "git_add_cmd",
         "git_commit_cmd",
+        "scope_status",
+        "scope_set_mode",
+        "scope_add_root",
+        "scope_remove_root",
+        "scope_revoke_all",
     ]);
     let attributes = tauri_build::Attributes::new().app_manifest(app_manifest);
     tauri_build::try_build(attributes).expect("failed to run tauri-build");

@@ -48,3 +48,40 @@
   .settings-section { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 }
 
+
+/* Computer Access (ANT-173 scope registry) */
+/* This section stacks several controls on the right; keeping them in one body
+   prevents the section grid's implicit placement from pushing a control into
+   the label column. */
+.settings-scope-body { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.settings-scope-detail { margin: 0; color: var(--pd-text-muted); }
+.settings-scope-actions { display: flex; gap: var(--pd-space-2); align-items: center; flex-wrap: wrap; }
+.settings-scope-actions label { display: flex; gap: var(--pd-space-2); align-items: center; color: var(--pd-text-muted); }
+.settings-scope-actions select, .settings-scope-actions input {
+  background: var(--pd-bg-input); color: var(--pd-text); border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-sm); padding: var(--pd-space-1) var(--pd-space-2); min-width: 170px;
+}
+.settings-scope-block {
+  background: var(--pd-bg-panel); border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius); min-width: 0;
+}
+.settings-scope-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px 12px; flex-wrap: wrap; padding: 11px 14px;
+  border-bottom: 1px solid var(--pd-border);
+}
+.settings-scope-list { list-style: none; margin: 0; padding: 4px 14px 6px; display: flex; flex-direction: column; }
+.settings-scope-list li {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 0; border-top: 1px solid var(--pd-border); min-width: 0;
+}
+.settings-scope-list li:first-child { border-top: 0; }
+.settings-scope-root {
+  font-family: var(--pd-font-mono); font-size: 12px; min-width: 0; flex: 1 1 240px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.settings-scope-entity { color: var(--pd-text-muted); font-size: 12px; white-space: nowrap; }
+.settings-scope-rights { display: inline-flex; gap: 4px; }
+.settings-scope-rights em { font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--pd-border); color: var(--pd-text-muted); }
+.settings-scope-empty { color: var(--pd-text-muted); }
+.settings-scope-error { color: var(--pd-danger); margin: 0; }
