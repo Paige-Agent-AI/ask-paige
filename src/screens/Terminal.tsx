@@ -114,7 +114,7 @@ export function Terminal({ workspaceRoot }: { workspaceRoot: string }) {
         <div className="terminal-output" ref={outputRef}>
           {lines.length === 0 && (
             <div className="terminal-line terminal-line-welcome">
-              PAIGE Desktop Terminal — scoped execution. Allowed dev commands run inside
+              Ask PAIGE Terminal — scoped execution. Allowed dev commands run inside
               authorized project roots. Destructive commands require explicit approval.
             </div>
           )}

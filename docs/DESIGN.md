@@ -204,3 +204,14 @@ orchestration changes it needs (a persisted per-conversation type field; type
 handoff through the existing ask pipeline) must be reconciled and proposed
 before implementation authorization is requested. Not part of Stage 1B;
 backend expansion hold unaffected.
+
+## 13. Future observation — project-context Git reconciliation (recorded, not implemented)
+
+During an owner conversation with an active pinned project, a Git inspection
+call was issued with `root: "."` and rejected as unauthorized. The permission
+enforcement was correct and stays exactly as strong; the defect is context
+plumbing: the conversational execution layer should resolve tool requests
+against the active project's canonical root instead of a relative working
+directory. Recorded for subsequent conversational-execution and
+project-context reconciliation. Do not weaken permission enforcement; no
+scope change here.
