@@ -130,7 +130,7 @@ security (45), ask runtime (24), installed-device scope acceptance (48) â€” then
 Windows screenshots from the compiled binary only, independent NON-AUTHOR review, and
 explicit owner acceptance before the next stage begins.
 
-## 11. Stage 1B — premium experience standards (authoritative)
+## 11. Stage 1B â€” premium experience standards (authoritative)
 
 **Cinematic awakening.** One gold light, the actual Command Mark, the wordmark
 "Ask PAIGE", tagline "Your intelligent Windows workstation". Pure
@@ -139,12 +139,12 @@ transform/opacity keyframes; no media dependency; audio signature reserved
 (`paige.startup`): Cinematic (~4s), Express (~1.2s), Instant (none). The
 overlay auto-enters; Skip and Escape enter now; reduced-motion shows the same
 information as calm crossfades. Application readiness is never blocked or
-faked — the shell initializes underneath and measurements are taken
+faked â€” the shell initializes underneath and measurements are taken
 independently of presentation duration.
 
 **Appearance model.** Two primary choices, Light and Dark; "Match Windows
 automatically" is one optional preference, not a competing theme button. The
-stored value keeps its previous meaning (light/dark/system) — migration is
+stored value keeps its previous meaning (light/dark/system) â€” migration is
 honest and documented; nothing silently changes.
 
 **Conversation foundations.** Human turns: right-aligned surface with a
@@ -154,22 +154,22 @@ label and alignment rather than chrome. Existing actions keep behavior;
 presentation only. New reactions/artifact rendering remain gated to their
 stages.
 
-**Settings architecture.** Category navigation: Personal (Personalization) ·
-Application (Appearance, General, Skills) · Trust and data (Privacy &
-Security: workspace access + Computer Access) · Information (About). Every
+**Settings architecture.** Category navigation: Personal (Personalization) â€”
+Application (Appearance, General, Skills) â€” Trust and data (Privacy &
+Security: workspace access + Computer Access) â€” Information (About). Every
 listed control is real; Personalization records the approved personality
 architecture and the owner's test profile without activating it.
 
 **Personality architecture (approved, implementation separately scoped).**
-Profiles: Executive & Strategic · Professional & Direct · Creative &
-Exploratory · Friendly & Conversational · Technical & Analytical. Owner test
+Profiles: Executive & Strategic â€” Professional & Direct â€” Creative &
+Exploratory â€” Friendly & Conversational â€” Technical & Analytical. Owner test
 profile recorded: Communication style Friendly; Response detail Balanced;
 Emojis when appropriate; Challenge assumptions Yes. Personality never
 overrides Trust, permissions or factual integrity. Requires new persistence
-and prompt integration — no implementation in Stage 1B.
+and prompt integration â€” no implementation in Stage 1B.
 
 **Access presentation.** A grant covering the canonical Windows user profile
-is labeled "your user profile — profile-wide reach" wherever grants are
+is labeled "your user profile â€” profile-wide reach" wherever grants are
 listed, so its reach is understandable without expanding or revoking
 anything. A proposed change to the native confirmation dialog text for
 profile-wide adds is reported separately for approval before any
@@ -179,7 +179,7 @@ security-related source is touched.
 (120ms, scale .97) and one focus ring (`--pd-focus`, 2px/2px offset) across
 every interactive element; hairline separators.
 
-## 12. Future requirement — adaptive conversation types (recorded, not implemented)
+## 12. Future requirement â€” adaptive conversation types (recorded, not implemented)
 
 Ask PAIGE will support adaptive, user-selectable conversation types inside
 one unified conversation experience: **Auto** (default intelligent
@@ -190,12 +190,12 @@ Principles recorded as binding design intent:
 - A user can switch the conversation type of an existing conversation without
   losing its history, context or artifacts.
 - Conversation type, personality, execution mode, model selection and Trust
-  authority are **distinct responsibilities** — changing one never implies
+  authority are **distinct responsibilities** â€” changing one never implies
   another, and changing conversation type never expands permissions or
   bypasses approvals.
 - The selected type eventually guides communication, specialist selection,
   skill discovery, model routing, authorized tool selection and output
-  presentation — through the **original PAIGE architecture** (no duplicate
+  presentation â€” through the **original PAIGE architecture** (no duplicate
   agents, orchestration engines or Model Fabrics).
 
 Status: design requirement for the **Stage 2 composer design planning**. The
@@ -205,7 +205,7 @@ handoff through the existing ask pipeline) must be reconciled and proposed
 before implementation authorization is requested. Not part of Stage 1B;
 backend expansion hold unaffected.
 
-## 13. Future observation — project-context Git reconciliation (recorded, not implemented)
+## 13. Future observation â€” project-context Git reconciliation (recorded, not implemented)
 
 During an owner conversation with an active pinned project, a Git inspection
 call was issued with `root: "."` and rejected as unauthorized. The permission
