@@ -348,6 +348,11 @@ fn validate_cwd(cwd: &str, allowed_roots: &[PathBuf]) -> Result<PathBuf, String>
     if !canon.is_dir() {
         return Err("working directory is not a directory".to_string());
     }
+    // The same protected-location invariant the broker applies must hold for
+    // every native execution surface, including the terminal.
+    if crate::scope::is_protected_path(&canon) {
+        return Err("working directory is inside a protected PAIGE location".to_string());
+    }
     let allowed = allowed_roots.iter().any(|r| canon == *r || canon.starts_with(r));
     if !allowed {
         return Err("working directory is outside authorized project roots".to_string());

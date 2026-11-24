@@ -373,7 +373,7 @@ fn protected_config_dir() -> Option<PathBuf> {
     .clone()
 }
 
-fn is_protected_path(canon: &Path) -> bool {
+pub(crate) fn is_protected_path(canon: &Path) -> bool {
     let Some(config) = protected_config_dir() else { return false };
     let canon = compare_form(canon);
     canon == config || canon.starts_with(&config)
