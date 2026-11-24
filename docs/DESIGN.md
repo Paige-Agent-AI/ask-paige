@@ -216,13 +216,13 @@ directory. Recorded for subsequent conversational-execution and
 project-context reconciliation. Do not weaken permission enforcement; no
 scope change here.
 
-## 14. Stage 2A — the unified composer (authoritative)
+## 14. Stage 2A â€” the unified composer (authoritative)
 
 One consistent composer for new and existing conversations:
 - **Context line above the input:** environment and project identity in one
   control (opens the existing project palette), the single access-truth chip
   (gold only for Full), and the standing note "files stay on this computer
-  until you send" — the local-reference versus model-transmission boundary,
+  until you send" â€” the local-reference versus model-transmission boundary,
   stated where the choice is made.
 - **Compact controls below the input:** + options menu, working-style menu,
   model, gateway health, Send/Stop. Advanced preferences live in menus.
@@ -234,7 +234,7 @@ One consistent composer for new and existing conversations:
   dictation (2D), paste/bulk/drag-drop (2B). The architecture accommodates
   them without redesign.
 - **Welcome** (new conversation, no mandatory project): Command Mark, "What
-  are we working on today?", four suggestions that each seed the composer —
+  are we working on today?", four suggestions that each seed the composer â€”
   one genuine supported action each.
-- Five responsibilities remain distinct; none of them — environment,
-  project, type, style, model — ever expands authority.
+- Five responsibilities remain distinct; none of them â€” environment,
+  project, type, style, model â€” ever expands authority.

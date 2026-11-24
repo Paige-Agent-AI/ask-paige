@@ -128,16 +128,16 @@ export function Composer({
         {menuTriggerNode}
         <div className="ap-menu-anchor" ref={styleRef}>
           <button type="button" className="ap-btn icon" title="Working style — how Ask PAIGE executes"
-            aria-haspopup="menu" aria-expanded={styleOpen}
+            aria-label="Working style" aria-haspopup="menu" aria-expanded={styleOpen}
             onClick={() => setStyleOpen((open) => !open)}>⚙</button>
           {styleOpen && (
             <div className="ap-menu" role="menu" aria-label="Working style">
-              <button type="button" role="menuitemradio" aria-checked={mode === "plan"}
+              <button type="button" role="menuitemradio" aria-checked={mode === "plan"} disabled={modeLocked}
                 className={`ap-menu-item ${mode === "plan" ? "on" : ""}`}
                 onClick={() => { onSetMode("plan"); setStyleOpen(false); }}>
                 Plan first<small>research and inspect, read-only</small>
               </button>
-              <button type="button" role="menuitemradio" aria-checked={mode === "build"}
+              <button type="button" role="menuitemradio" aria-checked={mode === "build"} disabled={modeLocked}
                 className={`ap-menu-item ${mode === "build" ? "on" : ""}`}
                 onClick={() => { onSetMode("build"); setStyleOpen(false); }}>
                 Build directly<small>changes with broker approval</small>

@@ -1434,7 +1434,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
               </div>
             </header>}
             {(!messages?.length && !showLiveReply && !runVisible) && (
-              <Welcome onSeed={(seed) => handleInputChange(seed)} />
+              <Welcome onSeed={(seed) => { handleInputChange(seed); inputRef.current?.focus(); }} />
             )}
             {messages?.map((m, i) => {
               const connectorReceipt = m.role === "user" ? connectorReceiptOf(m) : undefined;
@@ -1777,7 +1777,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
               <Card className="ask-palette">
                 <div className="ask-palette-title">Reference a file (@)</div>
                 {!brokerGranted && (
-                  <div className="ask-palette-hint">Grant lab access to reference files (click the project chip above).</div>
+                  <div className="ask-palette-hint">Grant lab access to reference files (choose the project from the context line above).</div>
                 )}
                 {brokerGranted && filteredFiles.map((f) => (
                   <button key={f.rel_path} className="ask-palette-item" onClick={() => addContextRef(f.rel_path)}>
@@ -1795,7 +1795,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 <div className="ask-palette-title">Attach a file</div>
                 <input className="ask-palette-search" placeholder="Filter files…" value={attachQuery} onChange={(e) => setAttachQuery(e.target.value)} autoFocus />
                 {!brokerGranted && (
-                  <div className="ask-palette-hint">Grant lab access to attach files (click the project chip above).</div>
+                  <div className="ask-palette-hint">Grant lab access to attach files (choose the project from the context line above).</div>
                 )}
                 {brokerGranted && filteredAttach.map((f) => (
                   <button key={f.rel_path} className="ask-palette-item" onClick={() => addAttachment(f.rel_path)}>
