@@ -77,7 +77,7 @@ function ComputerAccess() {
 
   const activeMode = scope?.mode;
   // Until the scope status resolves, no mode is presented as active.
-  const effectiveMode = activeMode ?? "selected";
+  const effectiveMode = activeMode;
   return (
     <section className="settings-section" aria-labelledby="settings-computer-access">
       <div className="settings-section-title">
