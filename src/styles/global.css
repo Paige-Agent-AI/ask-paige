@@ -70,3 +70,18 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pd-text-dim);
 }
+
+/* ---- Stage 1B shared refinements ---------------------------------------- */
+/* Themed, unobtrusive scrollbars everywhere. */
+* { scrollbar-width: thin; scrollbar-color: var(--pd-border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--pd-border-strong); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* One pressed-feedback and focus standard for every interactive element. */
+button:not(:disabled) { transition: background-color var(--pd-transition-fast), color var(--pd-transition-fast), border-color var(--pd-transition-fast), transform var(--pd-transition-fast); }
+button:not(:disabled):active { transform: scale(0.97); }
+:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: 2px; }
+
+/* Hairline separators and calmer panels. */
+hr { border: 0; border-top: 1px solid var(--pd-border); }

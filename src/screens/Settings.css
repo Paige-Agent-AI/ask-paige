@@ -85,3 +85,16 @@
 .settings-scope-rights em { font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--pd-border); color: var(--pd-text-muted); }
 .settings-scope-empty { color: var(--pd-text-muted); }
 .settings-scope-error { color: var(--pd-danger); margin: 0; }
+
+/* ---- Stage 1B: Settings category architecture ---------------------------- */
+.settings-categories { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 22px; align-items: start; }
+.settings-nav { border-right: 1px solid var(--pd-border); padding-right: 14px; }
+.settings-nav-group h5 { margin: 16px 0 6px; font-size: 10.5px; letter-spacing: 1px; color: var(--pd-text-dim); font-weight: 700; }
+.settings-nav-group:first-child h5 { margin-top: 2px; }
+.settings-nav-item { display: block; width: 100%; text-align: left; padding: 7px 11px; border-radius: 9px;
+  color: var(--pd-text-muted); font-size: 12.5px; }
+.settings-nav-item:hover { color: var(--pd-text); background: var(--pd-bg-panel); }
+.settings-nav-item.on { background: var(--pd-bg-panel); color: var(--pd-text); }
+.settings-panels { min-width: 0; }
+.settings-row strong small.settings-value { display: block; margin-top: 3px; }
+@media (max-width: 870px) { .settings-categories { grid-template-columns: 1fr; } .settings-nav { border-right: 0; padding-right: 0; } }

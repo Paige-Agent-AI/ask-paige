@@ -1712,3 +1712,27 @@
   color: var(--pd-text-muted); white-space: nowrap; cursor: default; }
 .ask-scope-chip[data-mode="full"] { border-color: var(--pd-accent); color: var(--pd-text); }
 .ask-scope-chip[data-mode="observe"] { border-style: dashed; }
+
+/* ---- Stage 1B conversation foundations -----------------------------------
+ * Human and assistant turns share one typographic hierarchy; identity is
+ * carried by labels and alignment, never by heavy chrome. Existing actions
+ * keep their behavior; only their presentation is refined. */
+.ask-turn { gap: var(--pd-space-3); }
+.ask-msg { font-size: 14.5px; line-height: 1.62; }
+.ask-msg-role { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--pd-text-muted); }
+.ask-msg-assistant .ask-msg-role { color: var(--pd-gold); }
+.ask-msg-user .ask-msg-text {
+  background: var(--pd-bg-panel); border: 1px solid var(--pd-border);
+  border-radius: 14px 14px 4px 14px; padding: 11px 15px; width: fit-content; max-width: 76%;
+}
+.ask-msg-assistant .ask-msg-text { max-width: 74ch; }
+.ask-reply h1, .ask-reply h2, .ask-reply h3 { font-weight: 650; margin: 14px 0 6px; line-height: 1.3; }
+.ask-reply h1 { font-size: 18px; } .ask-reply h2 { font-size: 16.5px; } .ask-reply h3 { font-size: 15px; }
+.ask-reply p { margin: 9px 0; }
+.ask-reply table { border-collapse: collapse; font-size: 13px; }
+.ask-reply th, .ask-reply td { border-bottom: 1px solid var(--pd-border); padding: 8px 12px; text-align: left; }
+.ask-reply th { color: var(--pd-text-muted); font-size: 11px; letter-spacing: .6px; text-transform: uppercase; }
+.ask-reply pre { background: var(--pd-bg-elevated); border: 1px solid var(--pd-border); border-radius: 10px; padding: 12px 14px; overflow: auto; }
+.ask-reply code { font-family: var(--pd-font-mono); font-size: 12.5px; }
+.ask-msg-model { color: var(--pd-text-dim); font-size: 11px; }
+.ask-tool { border: 1px solid var(--pd-border); border-radius: 9px; font-size: 12px; }

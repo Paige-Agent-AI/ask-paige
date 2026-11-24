@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "../components/Button";
-import type { Appearance } from "../App";
+import type { Appearance, StartupExperience } from "../App";
 import { SkillDiscovery } from "../components/SkillDiscovery";
 import type { InstalledSkill, SkillInfo } from "../skills";
 import "./Settings.css";
@@ -133,6 +133,11 @@ function ComputerAccess() {
           {(scope?.grants ?? []).map((grant) => (
             <li key={grant.id}>
               <span className="settings-scope-root" title={grant.root}>{grant.root}</span>
+              {scope?.profile_root && grant.root.toLowerCase() === scope.profile_root.toLowerCase() && (
+                <span className="settings-scope-entity" title="This grant covers your entire Windows user profile — the same reach as Full Computer Access, as a standing grant.">
+                  your user profile — profile-wide reach
+                </span>
+              )}
               <span className="settings-scope-entity" title={`Workspace: ${grant.entity_name} (${grant.entity_id})`}>
                 {grant.entity_name}
               </span>
@@ -169,16 +174,23 @@ function ComputerAccess() {
   );
 }
 
-const appearances: { value: Appearance; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
+const appearances: { value: "light" | "dark"; label: string }[] = [
   { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
 ];
 
-export function Settings({ appearance, onAppearanceChange, enabledSkills, onSkillsChange, onUseSkill,
+const startupChoices: { value: StartupExperience; label: string; detail: string }[] = [
+  { value: "cinematic", label: "Cinematic", detail: "The Ask PAIGE identity reveal, about four seconds, with Skip always available." },
+  { value: "express", label: "Express", detail: "The same reveal compressed to about one second." },
+  { value: "instant", label: "Instant", detail: "Open straight into the workspace." },
+];
+
+export function Settings({ appearance, onAppearanceChange, startup, onStartupChange, enabledSkills, onSkillsChange, onUseSkill,
   skills, skillsError, onInstalled, onUseInstalled }: {
   appearance: Appearance;
   onAppearanceChange: (appearance: Appearance) => void;
+  startup: StartupExperience;
+  onStartupChange: (startup: StartupExperience) => void;
   enabledSkills: string[];
   onSkillsChange: (ids: string[]) => void;
   onUseSkill: (id: string) => void;
@@ -193,34 +205,99 @@ export function Settings({ appearance, onAppearanceChange, enabledSkills, onSkil
     { name: "Engineering and research", entries: skills.filter((skill) => !skill.design && !skill.repository) },
   ];
   const [version, setVersion] = useState<string | null>(null);
+  const [category, setCategory] = useState<"appearance" | "general" | "skills" | "trust" | "personal" | "about">("appearance");
   useEffect(() => {
     let mounted = true;
     void getVersion().then((value) => { if (mounted) setVersion(value); }).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
+  const categories: { id: typeof category; label: string; group: string }[] = [
+    { id: "personal", label: "Personalization", group: "Personal" },
+    { id: "appearance", label: "Appearance", group: "Application" },
+    { id: "general", label: "General", group: "Application" },
+    { id: "skills", label: "Skills", group: "Application" },
+    { id: "trust", label: "Privacy & Security", group: "Trust and data" },
+    { id: "about", label: "About", group: "Information" },
+  ];
+
   return (
-    <div className="settings">
+    <div className="settings settings-categories">
+      <nav className="settings-nav" aria-label="Settings categories">
+        {categories.map(({ id, label, group }, index) => (
+          <div key={group} className="settings-nav-group">
+            {categories.findIndex((c) => c.group === group) === index && <h5>{group}</h5>}
+            <button className={`settings-nav-item ${category === id ? "on" : ""}`} onClick={() => setCategory(id)}
+              aria-current={category === id ? "true" : undefined}>{label}</button>
+          </div>
+        ))}
+      </nav>
+      <div className="settings-panels">
+      {category === "appearance" && (
+      <>
       <section className="settings-section" aria-labelledby="settings-appearance">
         <div className="settings-section-title">
           <h2 id="settings-appearance">Appearance</h2>
-          <p>Choose how Ask PAIGE looks on this device.</p>
+          <p>One theme choice, and an optional preference to follow Windows.</p>
         </div>
         <div className="settings-row">
-          <strong>Color theme</strong>
-          <div className="settings-themes" role="group" aria-label="Color theme">
+          <strong>Theme</strong>
+          <div className="settings-themes" role="group" aria-label="Theme">
             {appearances.map(({ value, label }) => (
-              <Button key={value} size="sm" variant={appearance === value ? "primary" : "ghost"}
-                aria-pressed={appearance === value} onClick={() => onAppearanceChange(value)}>{label}</Button>
+              <Button key={value} size="sm" variant={!appearance.auto && appearance.mode === value ? "primary" : "ghost"}
+                aria-pressed={!appearance.auto && appearance.mode === value}
+                onClick={() => onAppearanceChange({ mode: value, auto: false })}>{label}</Button>
             ))}
           </div>
         </div>
+        <div className="settings-row">
+          <strong>Match Windows automatically</strong>
+          <Button size="sm" variant={appearance.auto ? "primary" : "ghost"} aria-pressed={appearance.auto}
+            title="Follow your Windows theme instead of the choice above."
+            onClick={() => onAppearanceChange({ mode: appearance.mode, auto: !appearance.auto })}>
+            {appearance.auto ? "On" : "Off"}
+          </Button>
+        </div>
       </section>
+      </>)}
 
+      {category === "general" && (
+      <section className="settings-section" aria-labelledby="settings-general">
+        <div className="settings-section-title">
+          <h2 id="settings-general">General</h2>
+          <p>How Ask PAIGE opens on this device. Application readiness is never delayed by presentation.</p>
+        </div>
+        {startupChoices.map(({ value, label, detail }) => (
+          <div className="settings-row" key={value}>
+            <strong>{label}<small className="settings-value">{detail}</small></strong>
+            <Button size="sm" variant={startup === value ? "primary" : "ghost"} aria-pressed={startup === value}
+              onClick={() => onStartupChange(value)}>Use</Button>
+          </div>
+        ))}
+      </section>)}
+
+      {category === "personal" && (
+      <section className="settings-section" aria-labelledby="settings-personalization">
+        <div className="settings-section-title">
+          <h2 id="settings-personalization">Personalization</h2>
+          <p>How Ask PAIGE communicates with you. The personality engine is a separately scoped capability — recorded here, not yet active.</p>
+        </div>
+        <div className="settings-row"><strong>Communication style</strong><span className="settings-value">Friendly</span></div>
+        <div className="settings-row"><strong>Response detail</strong><span className="settings-value">Balanced</span></div>
+        <div className="settings-row"><strong>Emojis</strong><span className="settings-value">When appropriate</span></div>
+        <div className="settings-row"><strong>Challenge assumptions</strong><span className="settings-value">Yes</span></div>
+        <div className="settings-row">
+          <strong>Future profiles</strong>
+          <span className="settings-value">Executive &amp; Strategic · Professional &amp; Direct · Creative &amp; Exploratory · Friendly &amp; Conversational · Technical &amp; Analytical</span>
+        </div>
+        <p className="settings-value">Personality never overrides Trust, permissions or factual integrity. Implementation is authorized for a later stage.</p>
+      </section>)}
+
+      {category === "skills" && (
       <section className="settings-section" aria-labelledby="settings-skills">
         <div className="settings-section-title">
           <h2 id="settings-skills">Skills</h2>
-          <p>Choose which skills appear in the composer, or use one in the current chat.</p>
+          <p>Choose which skills appear in the composer, or use one in the current chat. Skills' permanent home is Customize.</p>
         </div>
         <div className="settings-skill-library">
           <details className="settings-skill-discovery" id="settings-find-skills">
@@ -248,40 +325,31 @@ export function Settings({ appearance, onAppearanceChange, enabledSkills, onSkil
           })}
         </div>)}
         </div>
-      </section>
+      </section>)}
 
+      {category === "trust" && (
+      <>
       <section className="settings-section" aria-labelledby="settings-workspace">
         <div className="settings-section-title">
           <h2 id="settings-workspace">Workspace access</h2>
-          <p>Manage which local folders PAIGE can use and whether access is remembered.</p>
+          <p>Projects is the home for folders, workspaces and My Computer.</p>
         </div>
         <div className="settings-row">
-          <strong>Authorized projects</strong>
+          <strong>Projects and workspaces</strong>
           <Button size="sm" onClick={() => window.dispatchEvent(new CustomEvent("paige-navigate", { detail: "projects" }))}>
-            Manage project access
+            Open Projects
           </Button>
         </div>
       </section>
-
       <ComputerAccess />
+      </>)}
 
-      <section className="settings-section" aria-labelledby="settings-connections">
-        <div className="settings-section-title">
-          <h2 id="settings-connections">Models &amp; Connections</h2>
-          <p>Manage model gateways and connected services.</p>
-        </div>
-        <div className="settings-row">
-          <strong>Providers and integrations</strong>
-          <Button size="sm" onClick={() => window.dispatchEvent(new CustomEvent("paige-navigate", { detail: "models" }))}>
-            Manage connections
-          </Button>
-        </div>
-      </section>
-
+      {category === "about" && (
       <section className="settings-section" aria-labelledby="settings-about">
         <div className="settings-section-title"><h2 id="settings-about">About</h2></div>
         <div className="settings-row"><strong>Ask PAIGE</strong>{version && <span className="settings-value">Version {version}</span>}</div>
-      </section>
+      </section>)}
+      </div>
     </div>
   );
 }

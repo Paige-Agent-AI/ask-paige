@@ -56,21 +56,74 @@
   .app-shell-tools .app-header { padding-inline: 16px; }
 }
 
-/* Branded startup awakening (Stage 1). Real state only: it exists while React
-   mounts and dismisses on its own; no fabricated progress, no blocking waits.
-   Motion is transform/opacity only; the shared tokens make reduced-motion a
-   same-information, no-movement variant. */
+
+/* ---- Stage 1B: the Ask PAIGE cinematic awakening ------------------------- *
+ * One gold light, the actual Command Mark, the wordmark. Presentational
+ * only: the shell initializes underneath and the overlay auto-enters.
+ * Frequencies: cinematic ~4s, express ~1.2s, instant none. Skip/Esc enter
+ * now. Reduced motion: the same information as calm crossfades (the shared
+ * tokens zero durations; the reduced block below also removes movement). */
 .app-awakening {
   position: fixed; inset: 0; z-index: 200;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: var(--pd-space-4);
-  background: var(--pd-bg);
-  transition: opacity var(--pd-transition);
+  display: grid; place-items: center;
+  background: radial-gradient(120% 90% at 50% 62%, #14161d 0%, #0a0c10 55%, #060709 100%);
 }
-.awakening-mark { height: 56px; opacity: 0; transform: scale(0.94); }
-.awakening-name { font-size: var(--pd-text-lg); font-weight: 650; letter-spacing: 0.2px; }
-.awakening-status { font-size: var(--pd-text-sm); color: var(--pd-text-muted); }
-:root[data-awakening="revealed"] .awakening-mark {
-  opacity: 1; transform: scale(1);
-  transition: opacity var(--pd-reveal) var(--pd-ease-out), transform var(--pd-reveal) var(--pd-ease-out);
+[data-theme="light"] .app-awakening {
+  background: radial-gradient(120% 90% at 50% 62%, #fbfaf6 0%, #f1eee6 55%, #e7e3d8 100%);
 }
+.awakening-atmosphere { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.awakening-core {
+  position: absolute; width: 640px; height: 640px; left: calc(50% - 320px); top: calc(50% - 430px);
+  border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(212,166,67,.20) 0%, rgba(212,166,67,.05) 42%, transparent 70%);
+  animation: awakening-breath 3.6s var(--pd-ease-out) .1s forwards;
+}
+.awakening-haze {
+  position: absolute; width: 900px; height: 520px; left: calc(50% - 450px); bottom: -260px;
+  border-radius: 50%; opacity: 0;
+  background: radial-gradient(ellipse, rgba(139,92,246,.10) 0%, transparent 65%);
+  animation: awakening-rise 2.8s var(--pd-ease-out) .5s forwards;
+}
+.awakening-stage { position: relative; display: grid; justify-items: center; gap: 0; transform: translateY(-4vh); }
+.awakening-mark { width: 96px; height: 96px; }
+.awakening-slash, .awakening-orb { opacity: 0; }
+.awakening-slash { fill: var(--pd-gold); animation: awakening-slash .9s var(--pd-ease-out) .9s forwards; }
+.awakening-orb { fill: var(--pd-gold-bright); animation: awakening-orb .7s var(--pd-ease-out) 1.75s forwards; }
+.awakening-name { margin-top: 26px; font-size: 30px; font-weight: 250; letter-spacing: .9px; opacity: 0;
+  animation: awakening-settle .9s var(--pd-ease-out) 2.35s forwards; }
+.awakening-name b { font-weight: 650; }
+.awakening-tag { margin-top: 10px; color: var(--pd-text-muted); font-size: 13.5px; opacity: 0;
+  animation: awakening-rise .8s var(--pd-ease-out) 2.85s forwards; }
+.awakening-actions { position: absolute; bottom: 34px; left: 0; right: 0; display: flex; justify-content: center; opacity: 0;
+  animation: awakening-rise .6s var(--pd-ease-out) 3.3s forwards; }
+.awakening-actions button {
+  border: 1px solid var(--pd-border-strong); background: transparent; color: var(--pd-text-muted);
+  border-radius: 10px; padding: 8px 18px; font: 600 12.5px/1 inherit; cursor: pointer;
+  transition: color var(--pd-transition-fast), border-color var(--pd-transition-fast);
+}
+.awakening-actions button:hover { color: var(--pd-gold); border-color: var(--pd-gold); }
+.awakening-actions button:focus-visible { outline: 2px solid var(--pd-focus); outline-offset: 2px; }
+
+/* Express: the same identity, compressed to ~1.2s. */
+.mode-express .awakening-core { animation-duration: 1.4s; }
+.mode-express .awakening-slash { animation-delay: .1s; animation-duration: .4s; }
+.mode-express .awakening-orb { animation-delay: .35s; animation-duration: .35s; }
+.mode-express .awakening-name { animation-delay: .5s; animation-duration: .5s; }
+.mode-express .awakening-tag { animation-delay: .7s; animation-duration: .5s; }
+.mode-express .awakening-actions { animation-delay: .75s; animation-duration: .4s; }
+
+@keyframes awakening-breath { 0% { opacity: 0; transform: scale(.86); } 55% { opacity: 1; } 100% { opacity: .85; transform: scale(1.04); } }
+@keyframes awakening-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes awakening-settle { from { opacity: 0; transform: translateY(12px); letter-spacing: .9px; } to { opacity: 1; transform: none; letter-spacing: .3px; } }
+@keyframes awakening-slash { from { opacity: 0; transform: translateX(-14px) skewX(-6deg); } to { opacity: 1; transform: none; } }
+@keyframes awakening-orb { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-awakening .awakening-core, .app-awakening .awakening-haze { animation: none; opacity: .9; transform: none; }
+  .app-awakening .awakening-slash { animation: awakening-fade .5s ease forwards; }
+  .app-awakening .awakening-orb { animation: awakening-fade .5s ease .2s forwards; }
+  .app-awakening .awakening-name { animation: awakening-fade .5s ease .35s forwards; letter-spacing: .3px; }
+  .app-awakening .awakening-tag { animation: awakening-fade .5s ease .45s forwards; }
+  .app-awakening .awakening-actions { animation: awakening-fade .5s ease .5s forwards; }
+}
+@keyframes awakening-fade { from { opacity: 0; } to { opacity: 1; } }
