@@ -1736,3 +1736,6 @@
 .ask-reply code { font-family: var(--pd-font-mono); font-size: 12.5px; }
 .ask-msg-model { color: var(--pd-text-dim); font-size: 11px; }
 .ask-tool { border: 1px solid var(--pd-border); border-radius: 9px; font-size: 12px; }
+
+/* Stage 1B review fix: human turns align right with one surface, not two. */
+.ask-msg-user { align-self: flex-end; background: none; border: 0; border-radius: 0; padding-inline: 0; }

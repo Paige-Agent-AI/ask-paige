@@ -225,7 +225,7 @@ export function Settings({ appearance, onAppearanceChange, startup, onStartupCha
     <div className="settings settings-categories">
       <nav className="settings-nav" aria-label="Settings categories">
         {categories.map(({ id, label, group }, index) => (
-          <div key={group} className="settings-nav-group">
+          <div key={id} className="settings-nav-group">
             {categories.findIndex((c) => c.group === group) === index && <h5>{group}</h5>}
             <button className={`settings-nav-item ${category === id ? "on" : ""}`} onClick={() => setCategory(id)}
               aria-current={category === id ? "true" : undefined}>{label}</button>
@@ -254,7 +254,9 @@ export function Settings({ appearance, onAppearanceChange, startup, onStartupCha
           <strong>Match Windows automatically</strong>
           <Button size="sm" variant={appearance.auto ? "primary" : "ghost"} aria-pressed={appearance.auto}
             title="Follow your Windows theme instead of the choice above."
-            onClick={() => onAppearanceChange({ mode: appearance.mode, auto: !appearance.auto })}>
+            onClick={() => onAppearanceChange(appearance.auto
+              ? { mode: document.documentElement.dataset.theme === "light" ? "light" : "dark", auto: false }
+              : { mode: appearance.mode, auto: true })}>
             {appearance.auto ? "On" : "Off"}
           </Button>
         </div>

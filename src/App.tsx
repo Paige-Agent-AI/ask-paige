@@ -102,19 +102,14 @@ function App() {
   const [awakening, setAwakening] = useState(startup !== "instant");
   const awakenMs = startup === "cinematic" ? 4000 : 1200;
   const enterNow = useCallback(() => {
-    delete document.documentElement.dataset.awakening;
     setAwakening(false);
   }, []);
   useEffect(() => {
     if (startup === "instant") return;
-    const reveal = requestAnimationFrame(() => {
-      document.documentElement.dataset.awakening = "revealed";
-    });
     const dismiss = setTimeout(enterNow, awakenMs);
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") enterNow(); };
     window.addEventListener("keydown", onKey);
     return () => {
-      cancelAnimationFrame(reveal);
       clearTimeout(dismiss);
       window.removeEventListener("keydown", onKey);
     };
