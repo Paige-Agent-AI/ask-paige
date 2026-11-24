@@ -1391,7 +1391,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 ))}
               </>}
             </div>
-            <nav className="ask-left-nav" aria-label="PAIGE Desktop">
+            <nav className="ask-left-nav" aria-label="Ask PAIGE">
               <button type="button" onClick={() => { if (compactHistory) setLeftOpen(false); onNavigate("projects"); }}><FolderIcon aria-hidden /> Projects</button>
               <button type="button" onClick={() => { if (compactHistory) setLeftOpen(false); onNavigate("models"); }}><CpuIcon aria-hidden /> Models &amp; Connections</button>
               <button type="button" onClick={() => { if (compactHistory) setLeftOpen(false); onNavigate("settings"); }}><SettingsIcon aria-hidden /> Settings</button>
@@ -1456,7 +1456,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
               const imageData = imageReceipt ? readReceipt(imageReceipt) : undefined;
               const imagePath = imageData?.image && typeof imageData.image === "object" && "path" in imageData.image
                 && typeof imageData.image.path === "string" ? imageData.image.path : undefined;
-              const imageLabel = imageData?.source === "screenshot" ? "PAIGE Desktop screenshot"
+              const imageLabel = imageData?.source === "screenshot" ? "Ask PAIGE screenshot"
                 : imageData?.source === "generated" ? "Generated image" : imagePath?.split("/").pop() ?? "Project PNG";
               const hasCommands = turnEvidence.some((event) => event.kind === "tool" && event.tool === "run_command");
               const hasPlan = turnEvidence.some(isWorkbenchPlan);

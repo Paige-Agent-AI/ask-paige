@@ -48,17 +48,29 @@
 }
 .app-shell-tools .app-main, .app-shell-tools .app-header { background: var(--tool-paper); }
 .app-shell-tools .app-header { min-height: 52px; }
-.app-shell-tools .sidebar.expanded { width: clamp(192px, 17vw, 244px); }
-.app-shell-tools .sidebar-item { height: 34px; gap: 9px; }
-.app-shell-tools .sidebar-item .sidebar-icon > svg { width: 16px; height: 16px; }
 .app-shell-tools .app-content { padding: clamp(16px, 3vw, 36px); }
 @media (min-width: 1150px) {
   .app-shell-tools .app-header { padding-inline-start: max(36px, calc((100% - 1000px) / 2)); }
 }
 @media (max-width: 720px) {
-  .app-shell-tools .sidebar, .app-shell-tools .sidebar.expanded { width: 60px; }
-  .app-shell-tools .sidebar-item { justify-content: center; padding-inline: 0; }
-  .app-shell-tools .sidebar-label, .app-shell-tools .sidebar-mark-text, .app-shell-tools .sidebar-toggle { display: none; }
-  .app-shell-tools .sidebar-header { justify-content: center; padding-inline: 0; }
   .app-shell-tools .app-header { padding-inline: 16px; }
+}
+
+/* Branded startup awakening (Stage 1). Real state only: it exists while React
+   mounts and dismisses on its own; no fabricated progress, no blocking waits.
+   Motion is transform/opacity only; the shared tokens make reduced-motion a
+   same-information, no-movement variant. */
+.app-awakening {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--pd-space-4);
+  background: var(--pd-bg);
+  transition: opacity var(--pd-transition);
+}
+.awakening-mark { height: 56px; opacity: 0; transform: scale(0.94); }
+.awakening-name { font-size: var(--pd-text-lg); font-weight: 650; letter-spacing: 0.2px; }
+.awakening-status { font-size: var(--pd-text-sm); color: var(--pd-text-muted); }
+:root[data-awakening="revealed"] .awakening-mark {
+  opacity: 1; transform: scale(1);
+  transition: opacity 250ms var(--pd-ease-out), transform 250ms var(--pd-ease-out);
 }

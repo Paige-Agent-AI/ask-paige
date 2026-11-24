@@ -17,6 +17,13 @@
   --pd-danger: #fda0a4;
   --pd-success: #46ce8b;
   --pd-warning: #f59e0b;
+  --pd-gold: #d4a643;
+  --pd-gold-bright: #e9a83a;
+  --pd-focus: #b09aff;
+
+  /* Motion (Animate standard: strong curves, sub-300ms UI) */
+  --pd-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --pd-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
   /* Typography */
   --pd-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -69,4 +76,16 @@
   --pd-danger: #a3253a;
   --pd-success: #147044;
   --pd-warning: #805111;
+  --pd-gold: #a97f14;
+  --pd-gold-bright: #c99a2a;
+  --pd-focus: #5836b0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --pd-transition-fast: 0ms;
+    --pd-transition: 0ms;
+    --pd-ease-out: step-end;
+    --pd-ease-in-out: step-end;
+  }
 }

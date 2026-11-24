@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Layout, type Screen } from "./components/Layout";
+import { PaigeCommandMark } from "./components/brand/PaigeCommandMark";
 import { AskPaige } from "./screens/AskPaige";
 import { Projects } from "./screens/Projects";
 import { ModelsConnections } from "./screens/ModelsConnections";
@@ -79,8 +80,29 @@ function App() {
 
   const meta = screenTitles[screen];
 
+  // Branded awakening: one restrained reveal of the real Command Mark while
+  // React mounts, then a seamless crossfade into the shell. It waits for
+  // nothing consequential (no model, MCP or scope round-trip), invents no
+  // progress, and honors the shared motion tokens, so reduced-motion users
+  // see the same information without the movement.
+  const [awakening, setAwakening] = useState(true);
+  useEffect(() => {
+    const reveal = requestAnimationFrame(() => {
+      document.documentElement.dataset.awakening = "revealed";
+    });
+    const dismiss = setTimeout(() => setAwakening(false), 480);
+    return () => { cancelAnimationFrame(reveal); clearTimeout(dismiss); };
+  }, []);
+
   return (
     <Layout active={screen} onNavigate={setScreen} title={meta.title} subtitle={meta.subtitle}>
+      {awakening && (
+        <div className="app-awakening" aria-hidden="true">
+          <PaigeCommandMark className="awakening-mark" label={null} />
+          <div className="awakening-name">Ask PAIGE</div>
+          <div className="awakening-status">Preparing workspace</div>
+        </div>
+      )}
       <div className="app-conversation" hidden={screen !== "ask"}>
         <AskPaige visible={screen === "ask"} enabledSkills={enabledSkills} skills={skills}
           onInstalled={registerInstalled} onUseInstalled={useInstalledInChat}

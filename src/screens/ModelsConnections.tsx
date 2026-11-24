@@ -149,7 +149,7 @@ function ProviderSignIn({ provider, mcp, id, onSaved }: {
 
   return (
     <form className="provider-form" onSubmit={signIn}>
-      {provider === "paige" && <p className="connection-help">For your Operator account, open Operator sign-in first. Then return here to authorize PAIGE Desktop in the same browser.</p>}
+      {provider === "paige" && <p className="connection-help">For your Operator account, open Operator sign-in first. Then return here to authorize Ask PAIGE in the same browser.</p>}
       {provider === "linear" && <p className="connection-help">Grant PAIGE Read and Write access to the Linear workspace you choose.</p>}
       {provider === "supabase" && <p className="connection-help">Authorize database and analytics read access in the browser. PAIGE will use the selected project and ask you to confirm SQL and migrations.</p>}
       {provider === "github" && <p className="connection-help">GitHub requests repo access. PAIGE’s issue tools use the repository below. GitHub sign-in lasts for this app session.</p>}
@@ -351,7 +351,7 @@ export function ModelsConnections() {
             <header className="provider-section-header">
               <div>
                 <h3 id="integration-providers">Integrations</h3>
-                <p>Connect tools and workspaces to PAIGE Desktop.</p>
+                <p>Connect tools and workspaces to Ask PAIGE.</p>
               </div>
               {disclosure("custom", "Add custom server", "for MCP")}
             </header>

@@ -200,7 +200,7 @@ export function Settings({ appearance, onAppearanceChange, enabledSkills, onSkil
       <section className="settings-section" aria-labelledby="settings-appearance">
         <div className="settings-section-title">
           <h2 id="settings-appearance">Appearance</h2>
-          <p>Choose how PAIGE Desktop looks on this device.</p>
+          <p>Choose how Ask PAIGE looks on this device.</p>
         </div>
         <div className="settings-row">
           <strong>Color theme</strong>
@@ -276,7 +276,7 @@ export function Settings({ appearance, onAppearanceChange, enabledSkills, onSkil
 
       <section className="settings-section" aria-labelledby="settings-about">
         <div className="settings-section-title"><h2 id="settings-about">About</h2></div>
-        <div className="settings-row"><strong>PAIGE Desktop</strong>{version && <span className="settings-value">Version {version}</span>}</div>
+        <div className="settings-row"><strong>Ask PAIGE</strong>{version && <span className="settings-value">Version {version}</span>}</div>
       </section>
     </div>
   );
