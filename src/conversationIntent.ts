@@ -84,7 +84,7 @@ export function resolveChatIntent(message: string, context: IntentContext): Chat
     || /^(?:every|each) (?:day|week|weekday|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(text)
     || (/^(?:research|monitor|check|send|publish|create|run|review|fetch|generate|capture|take a screenshot)\b/i.test(text)
       && !/\b(?:happens?|occurs?|appears?|shows? up)\b/i.test(text) && recurrence.test(text))) {
-    return { kind: "unavailable", message: "Scheduled work isn’t available in PAIGE Desktop. You can ask me to run this once." };
+    return { kind: "unavailable", message: "Scheduled work isn’t available in Ask PAIGE. You can ask me to run this once." };
   }
   if (externalChange.test(text) || /\b(?:unless|if)\b/i.test(text)) return null;
   const isReviewOnly = reviewOnly.test(text);

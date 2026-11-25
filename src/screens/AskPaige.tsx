@@ -1755,7 +1755,9 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 <Button variant="ghost" size="sm" disabled={chatPending} onClick={() => void withChatAction(async () => {
                   // No project: keep this conversation draft project-less. The
                   // conversation record is created when the first message is
-                  // sent, never by merely opening one.
+                  // sent, never by merely opening one. A previously chosen
+                  // draft project is discarded, not silently kept.
+                  setPendingWorkspace(null);
                   setProjectPicker(false);
                   requestAnimationFrame(() => inputRef.current?.focus());
                 })}>No project</Button>
