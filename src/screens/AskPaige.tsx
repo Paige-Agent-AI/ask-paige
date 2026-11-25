@@ -249,6 +249,13 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
   const ask = useAsk();
   const broker = useBroker();
   const [input, setInput] = useState("");
+  // A project chosen for a brand-new conversation before any message exists.
+  // It is pinned to the conversation record when the first message is sent —
+  // never before, so picking a project never creates an empty record.
+  const [pendingWorkspace, setPendingWorkspace] = useState<string | null>(null);
+  // Pin a draft-chosen project once the first turn has finished: the turn lock
+  // is released then, so chat_pin_workspace never blocks the send flow.
+  const pendingPinRef = useRef<{ chatId: string; root: string } | null>(null);
   const [mode, setMode] = useState<AskMode>("plan");
   const [leftOpen, setLeftOpen] = useState(() => !window.matchMedia("(max-width: 720px)").matches);
   const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 1020px)").matches);
@@ -291,6 +298,9 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
   const [inspectTurn, setInspectTurn] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  // A pending project belongs only to a not-yet-sent draft: once a real
+  // conversation is active, the draft context is discarded.
+  useEffect(() => { if (activeChatId) setPendingWorkspace(null); }, [activeChatId]);
   const [chatQuery, setChatQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [teamPicker, setTeamPicker] = useState(false);
@@ -395,6 +405,18 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     setChats(res.chats);
     return res;
   };
+
+  // Apply a draft-chosen project pin once the turn has ended and the lock is
+  // free. Failure is surfaced by the chat list staying unpinned; the owner can
+  // re-pin from the context control at any time.
+  useEffect(() => {
+    const pin = pendingPinRef.current;
+    if (!pin || ask.busy || activeChatId !== pin.chatId) return;
+    pendingPinRef.current = null;
+    void invoke<Chat>("chat_pin_workspace", { id: pin.chatId, root: pin.root })
+      .then(() => refreshChats())
+      .catch(() => {});
+  }, [ask.busy, activeChatId]);
 
   const filteredChats = useMemo(() => {
     const q = chatQuery.trim().toLowerCase();
@@ -738,6 +760,13 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     const started = await ask.send(text, composer, activeChat?.id ?? null);
     if (started?.chat_id) {
       const startedId = started.chat_id;
+      // A project chosen before this first message is pinned when the turn
+      // ends — chat_pin_workspace needs the turn lock that the running turn
+      // already holds, so an immediate pin would block the send flow.
+      if (!activeChatId && pendingWorkspace) {
+        pendingPinRef.current = { chatId: startedId, root: pendingWorkspace };
+        setPendingWorkspace(null);
+      }
       if (!activeChatId && newChatModel) {
         setChatModels((previous) => ({ ...previous, [startedId]: newChatModel }));
         setNewChatModel(null);
@@ -1034,6 +1063,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     if (compactHistory) setLeftOpen(false);
     setNewChatModel(null);
     setActiveChatId(null);
+    setPendingWorkspace(null);
     setTeamPicker(false);
     setInspectTurn(null);
     setRightOpen(false);
@@ -1041,8 +1071,10 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     setChatQuery("");
     clearComposer();
     setMode("plan");
-    setProjectPicker(true);
-    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".ask-project-choice")?.focus());
+    // An independent conversation opens immediately: no project palette, no
+    // inherited project, and no persistent record until the first message is
+    // actually sent (ask.send creates the conversation record).
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const openProject = (folder?: string, authorizeOnly = false) => void withChatAction(async () => {
@@ -1051,6 +1083,16 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     if (!root) return;
     const grant = await invoke<BrokerStatus>("project_open_folder", { root });
     if (!grant.read || !grant.root) throw Error("PAIGE couldn't authorize the selected folder.");
+    if (!authorizeOnly && !activeChatId) {
+      // A brand-new conversation keeps its draft: choosing a project holds it
+      // as the pending workspace and pins it when the first message is sent.
+      // No persistent record is created merely by picking a project.
+      setPendingWorkspace(grant.root);
+      setProjectPicker(false);
+      await broker.refreshStatus();
+      requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
     if (!authorizeOnly) {
       const chat = await invoke<Chat>("chat_pin_workspace", { id: activeChatId, root: grant.root });
       if (!activeChatId && newChatModel) {
@@ -1711,19 +1753,12 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
               <div className="ask-project-picker-actions">
                 <Button variant="secondary" size="sm" disabled={chatPending || ask.busy} onClick={() => openProject()}>Browse…</Button>
                 <Button variant="ghost" size="sm" disabled={chatPending} onClick={() => void withChatAction(async () => {
-                  if (!activeChatId) {
-                    const chat = await invoke<Chat>("chat_new", { noProject: true });
-                    if (newChatModel) {
-                      setChatModels((previous) => ({ ...previous, [chat.id]: newChatModel }));
-                      setNewChatModel(null);
-                    }
-                    setChats((previous) => [chat, ...previous]);
-                    setActiveChatId(chat.id);
-                    await broker.refreshStatus();
-                  }
+                  // No project: keep this conversation draft project-less. The
+                  // conversation record is created when the first message is
+                  // sent, never by merely opening one.
                   setProjectPicker(false);
                   requestAnimationFrame(() => inputRef.current?.focus());
-                })}>Choose later</Button>
+                })}>No project</Button>
               </div>
             </Card>}
             <div className="ask-chips">
@@ -1866,8 +1901,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 mode={composerMode}
                 onSetMode={setMode}
                 modeLocked={!!workflowDraft}
-                workspaceLabel={(pinnedWorkspace ?? grantedWorkspace)
-                  ? "▦ " + folderName(pinnedWorkspace ?? grantedWorkspace ?? "") : "◇ No project"}
+                workspaceLabel={(pinnedWorkspace ?? pendingWorkspace) ? "▦ " + folderName((pinnedWorkspace ?? pendingWorkspace) as string) : "◇ No project"}
                 onWorkspaceOpen={() => {
                   if (pinnedWorkspace && !needsSavedWorkspace) {
                     if (!pinnedReady) openProject(pinnedWorkspace, true);

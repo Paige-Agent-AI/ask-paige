@@ -94,7 +94,7 @@ export function Projects() {
               <div className="project-card-header">
                 <FolderIcon aria-hidden />
                 <div>
-                  <h3 className="project-card-name">{folder === LAB_ROOT ? "PAIGE Desktop Lab" : folderName(folder)}</h3>
+                  <h3 className="project-card-name">{folder === LAB_ROOT ? "Ask PAIGE Lab" : folderName(folder)}</h3>
                   <p className="project-card-path">{folder}</p>
                 </div>
               </div>
