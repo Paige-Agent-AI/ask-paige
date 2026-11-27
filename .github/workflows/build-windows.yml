@@ -48,7 +48,7 @@ jobs:
         run: npm ci
       
       - name: Build Windows package
-        run: npx tauri build --bundles nsis --features tauri/custom-protocol --config src-tauri/tauri.windows-release.conf.json
+        run: node scripts/prepare-github-mcp.mjs && npx tauri build --bundles nsis --features tauri/custom-protocol --config src-tauri/tauri.windows-release.conf.json
       
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
