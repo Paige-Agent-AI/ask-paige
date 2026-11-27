@@ -1,0 +1,60 @@
+name: Build PAIGE Desktop for Windows
+
+on:
+  push:
+    branches: [ stage-2b-checkpoint, main ]
+  workflow_dispatch:
+    inputs:
+      frontend_commit:
+        description: Full approved PAIGE frontend main commit SHA
+        required: true
+        type: string
+      merge_pr:
+        description: Canonical pull request number for automatic promotion
+        required: false
+        type: string
+      verify_coolify:
+        description: Verify the scoped Coolify credential and live domains without deploying
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    if: >-
+      github.repository_id == '1465755482' &&
+      (startsWith(github.ref, 'refs/heads/main') || github.ref == 'refs/heads/stage-2b-checkpoint') &&
+      !inputs.verify_coolify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Tauri CLI
+        run: npm install -g tauri-cli
+      
+      - name: Build Windows package
+        run: npm run build:windows
+      
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paige-desktop-windows-installer
+          path: src-tauri/target/release/bundle/nsis/PAIGE_Desktop_*.exe

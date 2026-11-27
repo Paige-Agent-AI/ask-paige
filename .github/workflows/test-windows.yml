@@ -1,0 +1,48 @@
+name: Test PAIGE Desktop (Windows)
+
+on:
+  push:
+    branches: [ stage-2b-checkpoint, main ]
+  pull_request:
+    branches: [ stage-2b-checkpoint, main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - name: cargo check
+            command: cargo check
+          - name: cargo test
+            command: cargo test --lib
+          - name: security config
+            command: npm run test:security
+          - name: broker runtime
+            command: npm run test:broker:runtime
+          - name: ask runtime
+            command: npm run test:ask:runtime
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.command }}
