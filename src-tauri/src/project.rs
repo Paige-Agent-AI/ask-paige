@@ -678,7 +678,7 @@ pub async fn project_pick_folder(window: tauri::WebviewWindow) -> Result<Option<
     #[cfg(windows)]
     {
         let owner = window.hwnd().map_err(|error| error.to_string())?.0 as usize;
-        tauri::async_runtime::spawn_blocking(move || pick_project_folder(owner)).await
+        tauri::async_runtime::spawn_blocking(move || pick_local_paths(owner, true, false).map(|paths| paths.into_iter().next())).await
             .map_err(|_| "The folder picker was interrupted.".to_string())?
     }
     #[cfg(not(windows))]
@@ -689,11 +689,11 @@ pub async fn project_pick_folder(window: tauri::WebviewWindow) -> Result<Option<
 }
 
 #[cfg(windows)]
-fn pick_project_folder(owner: usize) -> Result<Option<String>, String> {
+pub(crate) fn pick_local_paths(owner: usize, folders: bool, attachments: bool) -> Result<Vec<String>, String> {
     use windows::Win32::{
         Foundation::{ERROR_CANCELLED, HWND},
         System::Com::{CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize},
-        UI::Shell::{FOS_DONTADDTORECENT, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, FileOpenDialog, IFileOpenDialog, SIGDN_FILESYSPATH},
+        UI::Shell::{FOS_ALLOWMULTISELECT, FOS_DONTADDTORECENT, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, FileOpenDialog, IFileOpenDialog, SIGDN_FILESYSPATH},
     };
     use windows::core::{HRESULT, w};
 
@@ -709,26 +709,33 @@ fn pick_project_folder(owner: usize) -> Result<Option<String>, String> {
     }
 
     // The apartment and all dialog interfaces stay on the blocking worker thread.
-    let choose = || -> windows::core::Result<Option<String>> {
+    let choose = || -> windows::core::Result<Vec<String>> {
         unsafe {
             CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
             let _apartment = Apartment;
             let dialog: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
-            dialog.SetOptions(dialog.GetOptions()? | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_DONTADDTORECENT)?;
-            dialog.SetTitle(w!("Choose a PAIGE project folder"))?;
-            dialog.SetOkButtonLabel(w!("Select folder"))?;
+            let mut options = dialog.GetOptions()? | FOS_FORCEFILESYSTEM | FOS_DONTADDTORECENT;
+            if folders { options |= FOS_PICKFOLDERS; }
+            if attachments && !folders { options |= FOS_ALLOWMULTISELECT; }
+            dialog.SetOptions(options)?;
+            dialog.SetTitle(if attachments { w!("Choose attachments") } else { w!("Choose a PAIGE project folder") })?;
+            dialog.SetOkButtonLabel(if attachments { w!("Attach") } else { w!("Select folder") })?;
             match dialog.Show(Some(HWND(owner as *mut _))) {
-                Err(error) if error.code() == HRESULT::from_win32(ERROR_CANCELLED.0) => return Ok(None),
+                Err(error) if error.code() == HRESULT::from_win32(ERROR_CANCELLED.0) => return Ok(Vec::new()),
                 result => result?,
             }
-            let item = dialog.GetResult()?;
-            let path = item.GetDisplayName(SIGDN_FILESYSPATH)?;
-            let result = path.to_string();
-            CoTaskMemFree(Some(path.0.cast()));
-            Ok(Some(result?))
+            let path_for = |item: windows::Win32::UI::Shell::IShellItem| -> windows::core::Result<String> {
+                let path = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                let result = path.to_string().map_err(|_| windows::core::Error::from_hresult(HRESULT(0x80070057u32 as i32)));
+                CoTaskMemFree(Some(path.0.cast()));
+                result
+            };
+            if folders || !attachments { return Ok(vec![path_for(dialog.GetResult()?)?]); }
+            let items = dialog.GetResults()?;
+            (0..items.GetCount()?.min(17)).map(|index| path_for(items.GetItemAt(index)?)).collect()
         }
     };
-    choose().map_err(|error| format!("Could not browse for a project folder. {error}"))
+    choose().map_err(|error| format!("Could not open the Windows picker. {error}"))
 }
 
 fn selected_project_path(path: &str) -> Result<PathBuf, String> {

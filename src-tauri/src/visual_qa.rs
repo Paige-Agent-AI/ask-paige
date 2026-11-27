@@ -257,6 +257,26 @@ pub(crate) fn load_recorded(
 }
 
 impl Screenshot {
+    pub(crate) fn attachment_thumbnail_png(&self) -> Result<Vec<u8>, String> {
+        let scale = self.meta.width.max(self.meta.height).div_ceil(144).max(1);
+        let width = self.meta.width.div_ceil(scale);
+        let height = self.meta.height.div_ceil(scale);
+        let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+        for y in 0..height {
+            for x in 0..width {
+                pixels.extend_from_slice(&self.pixels[((y * self.meta.width + x) * scale) as usize]);
+            }
+        }
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, width, height);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.write_header().and_then(|mut writer| writer.write_image_data(&pixels))
+                .map_err(|_| "The attachment thumbnail could not be encoded.")?;
+        }
+        Ok(bytes)
+    }
+
     pub(crate) fn pixel_only_png(&self) -> Result<Vec<u8>, String> {
         let mut bytes = Vec::new();
         let pixels: Vec<_> = self.pixels.iter().flatten().copied().collect();

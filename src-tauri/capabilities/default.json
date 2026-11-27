@@ -84,6 +84,8 @@
     "allow-project-remove",
     "allow-project-open-folder",
     "allow-project-pick-folder",
+    "allow-attachment-pick",
+    "allow-attachment-inspect",
     "allow-project-revoke",
     "allow-project-list",
     "allow-project-status",

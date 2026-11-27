@@ -98,6 +98,8 @@ const allowed = new Set([
   "allow-workflow-read-word",
   "allow-workflow-read-visual",
   "allow-chat-read-image",
+  "allow-attachment-pick",
+  "allow-attachment-inspect",
   "allow-workflow-compare-visual",
   "allow-workflow-retry-visual-test",
   "allow-ask-cancel",

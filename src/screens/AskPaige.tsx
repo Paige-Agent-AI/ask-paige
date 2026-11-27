@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { invoke } from "@tauri-apps/api/core";
 import Markdown from "react-markdown";
 import { Composer } from "../ask/Composer";
+import { AttachmentTray, useAttachments } from "../ask/Attachments";
 import { Welcome } from "../ask/Welcome";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -684,7 +685,17 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
     await refreshProjects();
   });
 
+  const [attachmentDraft, setAttachmentDraft] = useState(0);
+  const staged = useAttachments({ chatId: activeChatId, project: pinnedWorkspace ?? pendingWorkspace,
+    generation: attachmentDraft, enabled: visible && historyLoaded && !ask.busy && !chatPending && !savedTask && !activeChat?.archived });
+  const pickAttachments = async (folder: boolean) => {
+    setComposerMenu(null);
+    await staged.pick(folder);
+    inputRef.current?.focus();
+  };
+
   const send = () => void withChatAction(async () => {
+    if (staged.pending || staged.entries.length) return;
     const text = input.trim();
     if (!historyLoaded || !text || projectPicker || ask.busy || runningChatId || activeChat?.archived) return;
     const detectedIntent = !savedTask && !workflowDraft && (!selectedSkill || selectedSkill.design) && skipIntentText !== text
@@ -1059,6 +1070,8 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
 
   const newChat = () => {
     if (!historyLoaded || chatAction.current || ask.busy) return;
+    if (!activeChatId) staged.clear();
+    setAttachmentDraft((previous) => previous + 1);
     rememberDraft();
     if (compactHistory) setLeftOpen(false);
     setNewChatModel(null);
@@ -1763,6 +1776,12 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 })}>No project</Button>
               </div>
             </Card>}
+            {!savedTask && <AttachmentTray items={staged.entries}
+              hint={staged.dragging ? "Drop to check and stage these files" : staged.notice}
+              pending={staged.pending} onRetry={staged.retry} onRemove={(path) => {
+                staged.remove(path);
+                inputRef.current?.focus();
+              }} />}
             <div className="ask-chips">
               {selectedSkill && !savedTask && <span className="ask-chip ask-skill-chip">
                 <span id="ask-active-skill">{selectedSkill.name}</span>
@@ -1850,7 +1869,11 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
               {composerMenu === "options" && <>
                 <button type="button" className="ask-palette-item" onClick={() => {
                   setComposerMenu(null); setAttachOpen(true);
-                }}>Attach a file</button>
+                }}>Attach a project file</button>
+                <button type="button" className="ask-palette-item" disabled={staged.pending}
+                  onClick={() => void pickAttachments(false)}>Choose files…</button>
+                <button type="button" className="ask-palette-item" disabled={staged.pending}
+                  onClick={() => void pickAttachments(true)}>Choose a folder…</button>
                 <button type="button" className="ask-palette-item" onClick={() => {
                   setSkillQuery(""); setComposerMenu("skills");
                 }}>Use a skill…</button>
@@ -1899,7 +1922,7 @@ export function AskPaige({ visible, enabledSkills, requestedSkillId, onSkillRequ
                 busy={ask.busy}
                 onCancel={ask.cancel}
                 cancelLabel={mode === "build" ? "Pause" : "Cancel"}
-                sendDisabled={!input.trim() || !historyLoaded || chatPending || !!runningChatId || projectPicker || !!activeChat?.archived}
+                sendDisabled={!input.trim() || !historyLoaded || chatPending || !!runningChatId || projectPicker || !!activeChat?.archived || staged.pending || staged.entries.length > 0}
                 mode={composerMode}
                 onSetMode={setMode}
                 modeLocked={!!workflowDraft}

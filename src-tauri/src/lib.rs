@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod ask;
+mod attachments;
 mod continuation;
 mod conversation_commands;
 mod linear_lookup;
@@ -131,6 +132,8 @@ pub fn run() {
             project::project_remove,
             project::project_open_folder,
             project::project_pick_folder,
+            attachments::attachment_pick,
+            attachments::attachment_inspect,
             project::project_revoke,
             project::project_list,
             project::project_status,

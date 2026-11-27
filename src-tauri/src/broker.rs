@@ -261,6 +261,10 @@ fn validate_text_bytes(content: &str, limit: usize) -> Result<(), String> {
 // Defends against traversal, absolute/UNC/prefix forms, alternate data
 // streams, reparse points and paths that resolve outside the root.
 fn validate_path(root: &Path, input: &str) -> Result<PathBuf, String> {
+    validate_target(root, input, false)
+}
+
+fn validate_target(root: &Path, input: &str, allow_folder: bool) -> Result<PathBuf, String> {
     if input.is_empty() {
         return Err("empty path".to_string());
     }
@@ -342,7 +346,7 @@ fn validate_path(root: &Path, input: &str) -> Result<PathBuf, String> {
     }
     if canon.exists() {
         let meta = fs::metadata(&canon).map_err(|e| e.to_string())?;
-        if !meta.is_file() {
+        if !(meta.is_file() || allow_folder && meta.is_dir()) {
             return Err("target is not a regular file".to_string());
         }
     }
@@ -916,6 +920,72 @@ pub(crate) fn read_workflow_image(
         return Err("Choose a regular PNG file inside the pinned worktree.".into());
     }
     read_sized_bytes(file, crate::visual_qa::MAX_PNG_BYTES)
+}
+
+/// An explicit attachment never uses or changes the ambient broker session.
+/// Return parent guards alongside the handle so the caller can read from the
+/// checked object without following a path a second time.
+pub(crate) fn open_attachment(input: &str, project: Option<&str>) -> Result<(PathBuf, fs::File, Vec<fs::File>), String> {
+    if input.len() > 4096 || input.split(['/', '\\']).any(|part| part == "." || part == "..") {
+        return Err("Invalid attachment path.".into());
+    }
+    let input = Path::new(input);
+    let mut parts = input.components().peekable();
+    #[cfg(windows)]
+    if !matches!(parts.peek(), Some(Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::Disk(_))) {
+        return Err("Choose a path on a local drive.".into());
+    }
+    let mut drive = PathBuf::new();
+    while matches!(parts.peek(), Some(Component::Prefix(_) | Component::RootDir)) {
+        drive.push(parts.next().unwrap().as_os_str());
+    }
+    if !drive.is_absolute() || parts.peek().is_none() { return Err("Choose a file or folder, not a drive.".into()); }
+    let mut current = fs::canonicalize(drive).map_err(|_| "Drive unavailable.")?;
+    let mut parents = Vec::new();
+    while let Some(component) = parts.next() {
+        let Component::Normal(name) = component else { return Err("Invalid attachment path.".into()); };
+        let parent = hold_project_directory(&current)?;
+        let checked = validate_target(&current, name.to_str().ok_or("Invalid filename.")?, true)?;
+        current.push(name);
+        if checked != current { return Err("The attachment path was redirected or aliased.".into()); }
+        if crate::scope::is_protected_path(&current) { return Err("This is a protected location.".into()); }
+        parents.push(parent);
+    }
+    if !crate::scope::is_authorized_canonical(&current, false) {
+        return Err("This attachment is outside your authorized access.".into());
+    }
+    if let Some(project) = project {
+        let root = fs::canonicalize(project).map_err(|_| "The chat project is unavailable.")?;
+        if !current.starts_with(&root) || !crate::scope::is_authorized_canonical(&root, false) {
+            return Err("Choose an attachment inside this chat’s authorized project.".into());
+        }
+    }
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // Do not follow links or allow write/delete while inspecting this handle.
+        options.share_mode(1).custom_flags(0x0220_0000);
+    }
+    let file = options.open(&current).map_err(|_| "The attachment could not be opened.")?;
+    let meta = file.metadata().map_err(|_| "The attachment could not be checked.")?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        if meta.file_attributes() & 0x400 != 0 { return Err("Redirected attachments are not supported.".into()); }
+        if meta.is_file() {
+            use windows::Win32::Storage::FileSystem::{BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle};
+            use std::os::windows::io::AsRawHandle;
+            let mut info = BY_HANDLE_FILE_INFORMATION::default();
+            unsafe { GetFileInformationByHandle(windows::Win32::Foundation::HANDLE(file.as_raw_handle()), &mut info) }
+                .map_err(|_| "The attachment identity could not be checked.")?;
+            if info.nNumberOfLinks != 1 { return Err("Hard-linked attachments are not supported.".into()); }
+        }
+    }
+    if !(meta.is_file() || meta.is_dir()) { return Err("Choose a file or folder.".into()); }
+    crate::scope::verify_attachment_scope(&current, project)?;
+    Ok((current, file, parents))
 }
 
 fn read_open_bytes(file: fs::File) -> Result<Vec<u8>, String> {

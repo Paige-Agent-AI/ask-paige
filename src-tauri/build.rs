@@ -78,6 +78,8 @@ fn main() {
         "project_remove",
         "project_open_folder",
         "project_pick_folder",
+        "attachment_pick",
+        "attachment_inspect",
         "project_revoke",
         "project_list",
         "project_status",

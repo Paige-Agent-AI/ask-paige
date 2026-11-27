@@ -388,6 +388,31 @@ pub fn is_authorized_canonical(canon: &Path, want_write: bool) -> bool {
     read_scope(|state| state.grants.iter().any(|g| grant_covers(g, canon, want_write, state.mode)))
 }
 
+/// Revalidate the identity of the most specific owner grant for an explicit
+/// attachment. A nested grant belonging to a different entity is not covered by
+/// a chat pinned to an enclosing entity's root.
+pub(crate) fn verify_attachment_scope(path: &Path, project: Option<&str>) -> Result<(), String> {
+    if is_protected_path(path) { return Err("This is a protected location.".into()); }
+    read_scope(|state| {
+        let grant_for = |target: &Path| state.grants.iter()
+            .filter(|g| grant_covers(g, target, false, state.mode))
+            .max_by_key(|g| Path::new(&g.root).components().count());
+        let grant = grant_for(path).ok_or("This attachment is outside your authorized access.")?;
+        if let Some(project) = project {
+            let root = std::fs::canonicalize(project).map_err(|_| "The chat project is unavailable.")?;
+            if !path.starts_with(&root) || grant_for(&root).is_none_or(|g| g.entity_id != grant.entity_id) {
+                return Err("This attachment belongs to another project or company.".into());
+            }
+        }
+        let root = std::fs::canonicalize(&grant.root).map_err(|_| "The authorized folder is unavailable.")?;
+        let file = crate::broker::hold_project_directory(&root)?;
+        if !path.starts_with(&root) || FolderIdentity::read(&file)? != grant.identity {
+            return Err("The authorized folder changed. Review Computer Access.".into());
+        }
+        Ok(())
+    })
+}
+
 /// True when `path` is inside an authorized root with the requested class.
 /// The path is canonicalized first, so symlinks resolve to their real target:
 /// a link pointing outside the scope is denied.
