@@ -28,8 +28,8 @@ jobs:
       github.repository_id == '1474828190' &&
       (startsWith(github.ref, 'refs/heads/main') || github.ref == 'refs/heads/stage-2b-checkpoint') &&
       !inputs.verify_coolify
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    runs-on: windows-latest
+    timeout-minutes: 40
     permissions:
       contents: read
       packages: write

@@ -9,8 +9,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    runs-on: windows-latest
+    timeout-minutes: 60
     strategy:
       matrix:
         include:
