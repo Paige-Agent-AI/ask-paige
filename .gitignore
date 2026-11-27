@@ -42,3 +42,6 @@ target-test/
 # Impeccable review screenshots (kept locally, not in git)
 .impeccable/review/*.png
 
+# Exclude all evidence screenshots from publication
+docs/evidence/*.png
+
