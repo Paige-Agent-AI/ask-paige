@@ -95,13 +95,13 @@ export function useAttachments({ chatId, project, generation, enabled }: {
   useEffect(() => {
     if (!enabled || !isTauri()) return;
     let cancelled = false;
-    const stop = getCurrentWebview().onDragDropEvent(({ payload }: { payload: any }) => {
+    const stop = getCurrentWebview().onDragDropEvent((e: { payload: any }) => {
       if (cancelled || !latest.current.enabled) return;
-      if (payload.type === "leave") { setDragging(false); return; }
-      const { x, y } = payload.position;
+      if (e.payload.type === "leave") { setDragging(false); return; }
+      const { x, y } = e.payload.position;
       const inside = !!document.elementFromPoint(x / devicePixelRatio, y / devicePixelRatio)?.closest(".ap-composer");
-      setDragging(inside && payload.type !== "drop");
-      if (inside && payload.type === "drop") void latest.current.stage(async () => payload.paths);
+      setDragging(inside && e.payload.type !== "drop");
+      if (inside && e.payload.type === "drop") void latest.current.stage(async () => e.payload.paths);
     });
     void stop.catch(() => {});
     return () => { cancelled = true; void stop.then((unlisten) => unlisten(), () => {}); };
@@ -137,7 +137,7 @@ export function AttachmentTray({ items, hint, pending, onRetry, onRemove }: {
             {item.detail && <small>{item.detail}</small>}
           </div>
           {item.state === "failed" && <button type="button" className="ap-btn" disabled={pending} onClick={() => onRetry(item.path)} aria-label={`Retry ${name}`}>Retry</button>}
-          <button type="button" className="ap-btn icon" onClick={() => onRemove(item.path)} aria-label={`Remove ${name}`} title="Remove from draft">×</button>
+          <button type="button" className="ap-btn icon" onClick={() => onRemove(item.path)} aria-label={`Remove from draft`} title="Remove from draft">×</button>
         </li>;
       })}
     </ul>

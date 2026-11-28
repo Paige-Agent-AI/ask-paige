@@ -1,10 +1,4 @@
-/**
- * Compatibility shim: mirrors `@tauri-apps/api/core` and `@tauri-apps/api/event`
- * signatures, delegating to `hostAdapter` on web and native Tauri on desktop.
- *
- * Callers keep using `invoke<T>(cmd, args)` and `listen<T>(event, handler)` with
- * the same type parameters they've always used — no code changes needed.
- */
+/** Compatibility shim: mirrors @tauri-apps/api/core and @tauri-apps/api/event signatures, delegating to hostAdapter on web and native Tauri on desktop. */
 import { isTauri as isTauriNative } from "@tauri-apps/api/core";
 import { listen as tauriListen, type UnlistenFn } from "@tauri-apps/api/event";
 import { hostAdapter, HostAdapterError } from "./index";
