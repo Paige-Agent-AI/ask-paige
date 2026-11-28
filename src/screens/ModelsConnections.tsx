@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import { Button } from "../components/Button";
 import { useAsk } from "../hooks/useAsk";
 import { useMcp, type UseMcpResult } from "../hooks/useMcp";

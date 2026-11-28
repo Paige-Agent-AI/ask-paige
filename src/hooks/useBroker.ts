@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import type {
   BrokerStatus,
   FileEntry,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import { PaigeCommandMark } from "./brand/PaigeCommandMark";
 import { CpuIcon, FolderIcon, SettingsIcon } from "./Icons";
 import type { Screen } from "./Layout";

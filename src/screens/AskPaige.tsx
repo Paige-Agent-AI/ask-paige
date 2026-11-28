@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import Markdown from "react-markdown";
 import { Composer } from "../ask/Composer";
 import { AttachmentTray, useAttachments } from "../ask/Attachments";

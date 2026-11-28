@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { invoke, listen, type UnlistenFn } from "../adapter/core";
 import type { McpCallResult, McpReceipt, McpServerStatus, McpStatus, OAuthProvider } from "../types/mcp";
 
 export interface McpMessageEvent {

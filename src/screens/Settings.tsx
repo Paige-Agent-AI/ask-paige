@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import { Button } from "../components/Button";
 import type { Appearance, StartupExperience } from "../App";
 import { SkillDiscovery } from "../components/SkillDiscovery";
@@ -208,7 +208,11 @@ export function Settings({ appearance, onAppearanceChange, startup, onStartupCha
   const [category, setCategory] = useState<"appearance" | "general" | "skills" | "trust" | "personal" | "about">("appearance");
   useEffect(() => {
     let mounted = true;
-    void getVersion().then((value) => { if (mounted) setVersion(value); }).catch(() => {});
+    if (typeof window !== "undefined" && (window as unknown as { __TAURI__?: unknown }).__TAURI__) {
+      void getVersion().then((value) => { if (mounted) setVersion(value); }).catch(() => {});
+    } else {
+      setVersion("web");
+    }
     return () => { mounted = false; };
   }, []);
 

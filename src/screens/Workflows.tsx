@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import { Button } from "../components/Button";
 import type { Chat, ExecutionEvent, WorkflowRun, WorkflowTemplate } from "../types/chats";
 

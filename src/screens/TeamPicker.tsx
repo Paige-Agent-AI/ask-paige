@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../adapter/core";
 import { Button } from "../components/Button";
 import type { Chat, TeamMember } from "../types/chats";
 import type { McpStatus } from "../types/mcp";

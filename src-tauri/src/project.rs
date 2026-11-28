@@ -209,7 +209,10 @@ impl ProjectState {
             .values()
             .filter(|g| !g.revoked && !g.workflow_only)
             .any(|g| {
-                let root = display_path(&PathBuf::from(&g.root));
+                // Canonicalize the grant root so 8.3 short names (e.g.
+                // RUNNER~1 on CI) resolve to the same full path as `canon`.
+                let grant_canon = std::fs::canonicalize(&g.root).unwrap_or_else(|_| PathBuf::from(&g.root));
+                let root = display_path(&grant_canon);
                 Path::new(&canon_display).starts_with(Path::new(&root))
             })
     }
@@ -279,7 +282,10 @@ fn validate_git_read_root(state: &ProjectState, root: &str) -> Result<PathBuf, S
         .map_err(|e| format!("path is inaccessible: {e}"))?;
     let canon_display = display_path(&canon);
     let allowed = state.grants.values().filter(|g| !g.revoked).any(|g| {
-        let grant_root = display_path(&PathBuf::from(&g.root));
+        // Canonicalize the grant root so 8.3 short names (e.g. RUNNER~1 on CI)
+        // resolve to the same full path as `canon`.
+        let grant_canon = std::fs::canonicalize(&g.root).unwrap_or_else(|_| PathBuf::from(&g.root));
+        let grant_root = display_path(&grant_canon);
         Path::new(&canon_display).starts_with(Path::new(&grant_root))
     });
     if !allowed {

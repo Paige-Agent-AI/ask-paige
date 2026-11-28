@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { invoke, isTauri } from "../adapter/core";
+import { getCurrentWebview } from "../adapter/web";
 import { FileTextIcon, FolderIcon } from "../components/Icons";
 
 const MAX_ITEMS = 16;
@@ -95,7 +95,7 @@ export function useAttachments({ chatId, project, generation, enabled }: {
   useEffect(() => {
     if (!enabled || !isTauri()) return;
     let cancelled = false;
-    const stop = getCurrentWebview().onDragDropEvent(({ payload }) => {
+    const stop = getCurrentWebview().onDragDropEvent(({ payload }: { payload: any }) => {
       if (cancelled || !latest.current.enabled) return;
       if (payload.type === "leave") { setDragging(false); return; }
       const { x, y } = payload.position;
