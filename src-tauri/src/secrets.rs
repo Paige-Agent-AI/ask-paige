@@ -258,6 +258,7 @@ pub fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
 /// Shared lock for tests that mutate the process-global PAIGE_TEST_CONFIG_DIR;
 /// cargo runs lib tests in parallel and env is process-global, so without a
 /// lock two such tests can race (one test's save/load reads the other's dir).
+#[cfg(test)]
 pub static TEST_CONFIG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(test)]

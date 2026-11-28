@@ -47,11 +47,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          cache-workspaces: src-tauri
+      
       - name: Build Windows package
+        working-directory: .
         run: node scripts/prepare-github-mcp.mjs && npx tauri build --bundles nsis --features tauri/custom-protocol --config src-tauri/tauri.windows-release.conf.json
       
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: paige-desktop-windows-installer
-          path: src-tauri/target/release/bundle/nsis/PAIGE_Desktop_*.exe
+          if-no-files-found: error
+          path: 'src-tauri/target/release/bundle/nsis/PAIGE Desktop_*.exe'

@@ -26,8 +26,8 @@ jobs:
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
+          cache-workspaces: src-tauri
       
       - name: ${{ matrix.name }}
         working-directory: src-tauri
